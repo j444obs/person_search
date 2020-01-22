@@ -1,7 +1,7 @@
 """
 Author: https://github.com/ShuangLI59/person_search.git
 Last editor: 520Chris
-Description: Load data from CUHK-SYSU dataset.
+Description: Database for person search.
 """
 
 import json
@@ -29,7 +29,10 @@ def compute_iou(a, b):
 
 
 class PSDB(IMDB):
-    """Database for person search."""
+    """
+    Database for CUHK-SYSU dataset. It provides tools for loading
+    data and evaluating the performance of algorithms.
+    """
 
     def __init__(self, name, root_dir=None):
         super(PSDB, self).__init__(name)
@@ -124,7 +127,7 @@ class PSDB(IMDB):
                     return
             print("Warning: person %s box %s cannot find in images." % (pid, box))
 
-        # Load all the train / test persons and label their pids from 0 to N-1
+        # Load all the train / test persons and label their pids from 0 to N - 1
         # Assign pid = -1 for unlabeled background people
         if self.name == "psdb_train":
             train = loadmat(osp.join(self.root_dir, "annotation/test/train_test/Train.mat"))
@@ -223,10 +226,7 @@ class PSDB(IMDB):
                         tfmat[i, j] = False
             for j in range(num_det):
                 y_score.append(det[j, -1])
-                if tfmat[:, j].any():
-                    y_true.append(True)
-                else:
-                    y_true.append(False)
+                y_true.append(tfmat[:, j].any())
             count_tp += tfmat.sum()
             count_gt += num_gt
 
@@ -235,10 +235,10 @@ class PSDB(IMDB):
         _, recall, _ = precision_recall_curve(y_true, y_score)
         recall *= det_rate
 
-        print("{} detection:".format("labeled only" if labeled_only else "all"))
-        print("  recall = {:.2%}".format(det_rate))
+        print("%s detection:" % ("Labeled only" if labeled_only else "All"))
+        print("  Recall = %.2f" % det_rate)
         if not labeled_only:
-            print("  ap = {:.2%}".format(ap))
+            print("  AP = %.2f" % ap)
 
     def evaluate_search(self, gallery_det, gallery_feat, probe_feat,
                         det_thresh=0.5, gallery_size=100, dump_json=None):
@@ -369,11 +369,11 @@ class PSDB(IMDB):
                 )
             ret["results"].append(new_entry)
 
-        print("search ranking:")
-        print("  mAP = {:.2%}".format(np.mean(aps)))
+        print("Search ranking:")
+        print("  mAP = %.2f" % np.mean(aps))
         accs = np.mean(accs, axis=0)
         for i, k in enumerate(topk):
-            print("  top-{:2d} = {:.2%}".format(k, accs[i]))
+            print("  Top-%s = %.2f" % (k, accs[i]))
 
         if dump_json is not None:
             if not osp.isdir(osp.dirname(dump_json)):

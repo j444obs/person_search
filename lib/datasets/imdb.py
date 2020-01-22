@@ -13,7 +13,7 @@ from fast_rcnn.config import cfg
 
 
 class IMDB:
-    """Image database."""
+    """A common image database. Inherit this class to develop a new one."""
 
     def __init__(self, name):
         self.name = name
