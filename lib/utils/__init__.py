@@ -1,6 +1,6 @@
 """
-@Author: Ross Girshick
-@Description: pickle and unpickle wrapper.
+Author: Ross Girshick
+Description: pickle and unpickle wrapper.
 """
 
 import pickle as pk

@@ -1,20 +1,20 @@
 """
-@Author: 520Chris
-@Description: Train a person search network
+Author: 520Chris
+Description: Train a person search network
 """
 
 import argparse
 import os
-import pprint
 import random
 import sys
 
 import numpy as np
 import torch
 
-from faster_rcnn.config import cfg, cfg_from_file, cfg_from_list, get_output_dir
+from datasets.factory import get_imdb
+from fast_rcnn.config import cfg, cfg_from_file, cfg_from_list, get_output_dir
+from models.network import Network
 from roi_data_layer.dataloader import DataLoader
-from roi_data_layer.roidb import combined_roidb
 
 
 def parse_args():
@@ -55,6 +55,17 @@ def parse_args():
     return args
 
 
+def prepare_imdb(name):
+    print("Loading image database: %s" % name)
+    imdb = get_imdb(name)
+    print("Done.")
+    if cfg.TRAIN.USE_FLIPPED:
+        print('Appending horizontally-flipped training examples...')
+        imdb.append_flipped_images()
+        print('Done.')
+    return imdb
+
+
 if __name__ == '__main__':
     args = parse_args()
 
@@ -66,9 +77,6 @@ if __name__ == '__main__':
     if args.set_cfgs is not None:
         cfg_from_list(args.set_cfgs)
 
-    print('Using config:')
-    pprint.pprint(cfg)
-
     if not args.randomize:
         # fix the random seeds (numpy and pytorch) for reproducibility
         torch.manual_seed(cfg.RNG_SEED)
@@ -79,8 +87,31 @@ if __name__ == '__main__':
         random.seed(cfg.RNG_SEED)
         os.environ['PYTHONHASHSEED'] = str(cfg.RNG_SEED)
 
-    imdb, roidb = combined_roidb(args.imdb_name)
+    imdb = prepare_imdb(args.imdb_name)
+    roidb = imdb.roidb
     print('%s roidb entries' % len(roidb))
 
     output_dir = get_output_dir(imdb.name)
     print('Output will be saved to `%s`' % output_dir)
+
+    dataloader = DataLoader(roidb)
+    net = Network()
+    net.train()
+    for i in range(1000):
+        blob = dataloader.get_next_minibatch()
+        res = net(torch.from_numpy(blob['data']),
+                  torch.from_numpy(blob['im_info']),
+                  torch.from_numpy(blob['gt_boxes']))
+
+    # from utils import pickle
+    # pickle(data, 'data.pkl')
+
+    # from utils import unpickle
+    # data = unpickle('data.pkl')
+    # net = Network()
+    # res = net(torch.from_numpy(data['data']),
+    #           torch.from_numpy(data['im_info']),
+    #           torch.from_numpy(data['gt_boxes']))
+
+    # import pickle
+    # data = pickle.load(open('caffe_model_weights.pkl', "rb"), encoding='latin1')

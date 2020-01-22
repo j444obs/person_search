@@ -1,6 +1,7 @@
 """
-@Author: https://github.com/ShuangLI59/person_search.git
-@Description: Loading training data from CUHK-SYSU dataset
+Author: https://github.com/ShuangLI59/person_search.git
+Last editor: 520Chris
+Description: Load data from CUHK-SYSU dataset.
 """
 
 import json
@@ -8,16 +9,16 @@ import os
 import os.path as osp
 
 import numpy as np
+from PIL import Image
 from scipy.io import loadmat
-from scipy.sparse import csr_matrix
 from sklearn.metrics import average_precision_score, precision_recall_curve
 
-from datasets.imdb import imdb
-from faster_rcnn.config import cfg
+from datasets.imdb import IMDB
+from fast_rcnn.config import cfg
 from utils import pickle, unpickle
 
 
-def _compute_iou(a, b):
+def compute_iou(a, b):
     x1 = max(a[0], b[0])
     y1 = max(a[1], b[1])
     x2 = min(a[2], b[2])
@@ -27,109 +28,152 @@ def _compute_iou(a, b):
     return inter * 1.0 / union
 
 
-class psdb(imdb):
-    """Database for person search"""
+class PSDB(IMDB):
+    """Database for person search."""
 
-    def __init__(self, image_set, root_dir=None):
-        super(psdb, self).__init__("psdb_" + image_set)
-        self._image_set = image_set
-        self._root_dir = self._get_default_path() if root_dir is None else root_dir
-        self._data_path = osp.join(self._root_dir, "Image", "SSM")
-        self._classes = ("__background__", "person")
-        self._image_index = self._load_image_set_index()
-        self._probes = self._load_probes()
-        self._roidb_handler = self.gt_roidb
-        assert osp.isdir(self._root_dir), "PSDB does not exist: {}".format(self._root_dir)
-        assert osp.isdir(self._data_path), "Path does not exist: {}".format(self._data_path)
+    def __init__(self, name, root_dir=None):
+        super(PSDB, self).__init__(name)
+        self.root_dir = self.get_default_path() if root_dir is None else root_dir
+        self.data_path = osp.join(self.root_dir, "Image", "SSM")
+        self.classes = ("background", "person")
+        self.image_index = self.load_image_index()
+        self.probes = self.load_probes()
+        self.roidb = self.gt_roidb()
+        assert name in ["psdb_train", "psdb_test"], "Only support database: psdb{train / test}."
+        assert osp.isdir(self.root_dir), "Path does not exist: %s." % self.root_dir
+        assert osp.isdir(self.data_path), "Path does not exist: %s." % self.data_path
 
     def image_path_at(self, i):
-        return self.image_path_from_index(self._image_index[i])
-
-    def image_path_from_index(self, index):
-        image_path = osp.join(self._data_path, index)
-        assert osp.isfile(image_path), "Path does not exist: {}".format(image_path)
+        image_path = osp.join(self.data_path, self.image_index[i])
+        assert osp.isfile(image_path), "Path does not exist: %s." % image_path
         return image_path
 
+    @staticmethod
+    def get_default_path():
+        return osp.join(cfg.DATA_DIR, "psdb", "dataset")
+
+    def load_image_index(self):
+        """Load the image indexes for training / testing."""
+        # Test images
+        test = loadmat(osp.join(self.root_dir, "annotation", "pool.mat"))
+        test = test["pool"].squeeze()
+        test = [str(a[0]) for a in test]
+        if self.name == "psdb_test":
+            return test
+
+        # All images
+        all_imgs = loadmat(osp.join(self.root_dir, "annotation", "Images.mat"))
+        all_imgs = all_imgs["Img"].squeeze()
+        all_imgs = [str(a[0][0]) for a in all_imgs]
+
+        # Training images = all images - test images
+        # TODO: shuffle the training set
+        train = list(set(all_imgs) - set(test))
+        train.sort()
+        # random.shuffle(train)
+        return train
+
+    def load_probes(self):
+        """Load the list of (img, roi) for probes."""
+        protocol = loadmat(osp.join(self.root_dir, "annotation/test/train_test/TestG50.mat"))
+        protocol = protocol["TestG50"].squeeze()
+        probes = []
+        for item in protocol["Query"]:
+            im_name = osp.join(self.data_path, str(item["imname"][0, 0][0]))
+            roi = item["idlocate"][0, 0][0].astype(np.int32)
+            roi[2:] += roi[:2]
+            probes.append((im_name, roi))
+        return probes
+
     def gt_roidb(self):
+        """Get ground truth roidb for each image.
+
+        The roidb of each image is a dictionary that has the following keys:
+            boxes: ndarray[N, 4], all gt_boxes in (x1, y1, x2, y2) format in the image.
+            gt_pids: ndarray[N], person id for each gt_boxes.
+            image: str, image path.
+            width: int, image width.
+            height: int, image height.
+            flipped: bool, whether the image is horizontally-flipped.
+        """
         cache_file = osp.join(self.cache_path, self.name + "_gt_roidb.pkl")
         if osp.isfile(cache_file):
-            roidb = unpickle(cache_file)
-            return roidb
+            gt_roidb = unpickle(cache_file)
+            print("Loaded cached roidb: %s." % cache_file)
+            return gt_roidb
 
         # Load all images and build a dict from image to boxes
-        all_imgs = loadmat(osp.join(self._root_dir, "annotation", "Images.mat"))
+        all_imgs = loadmat(osp.join(self.root_dir, "annotation", "Images.mat"))
         all_imgs = all_imgs["Img"].squeeze()
         name_to_boxes = {}
         name_to_pids = {}
-        for im_name, __, boxes in all_imgs:
+        for im_name, _, boxes in all_imgs:
             im_name = str(im_name[0])
             boxes = np.asarray([b[0] for b in boxes[0]])
             boxes = boxes.reshape(boxes.shape[0], 4)
             valid_index = np.where((boxes[:, 2] > 0) & (boxes[:, 3] > 0))[0]
-            assert valid_index.size > 0, "Warning: {} has no valid boxes.".format(im_name)
+            assert valid_index.size > 0, "Warning: %s has no valid boxes." % im_name
             boxes = boxes[valid_index]
             name_to_boxes[im_name] = boxes.astype(np.int32)
             name_to_pids[im_name] = -1 * np.ones(boxes.shape[0], dtype=np.int32)
 
-        def _set_box_pid(boxes, box, pids, pid):
+        def set_box_pid(boxes, box, pids, pid):
             for i in range(boxes.shape[0]):
                 if np.all(boxes[i] == box):
                     pids[i] = pid
                     return
-            print("Warning: person {} box {} cannot find in Images".format(pid, box))
+            print("Warning: person %s box %s cannot find in images." % (pid, box))
 
         # Load all the train / test persons and label their pids from 0 to N-1
         # Assign pid = -1 for unlabeled background people
-        if self._image_set == "train":
-            train = loadmat(osp.join(self._root_dir, "annotation/test/train_test/Train.mat"))
+        if self.name == "psdb_train":
+            train = loadmat(osp.join(self.root_dir, "annotation/test/train_test/Train.mat"))
             train = train["Train"].squeeze()
             for index, item in enumerate(train):
                 scenes = item[0, 0][2].squeeze()
-                for im_name, box, __ in scenes:
+                for im_name, box, _ in scenes:
                     im_name = str(im_name[0])
                     box = box.squeeze().astype(np.int32)
-                    _set_box_pid(name_to_boxes[im_name], box, name_to_pids[im_name], index)
+                    set_box_pid(name_to_boxes[im_name], box, name_to_pids[im_name], index)
         else:
-            test = loadmat(osp.join(self._root_dir, "annotation/test/train_test/TestG50.mat"))
+            test = loadmat(osp.join(self.root_dir, "annotation/test/train_test/TestG50.mat"))
             test = test["TestG50"].squeeze()
             for index, item in enumerate(test):
                 # query
                 im_name = str(item["Query"][0, 0][0][0])
                 box = item["Query"][0, 0][1].squeeze().astype(np.int32)
-                _set_box_pid(name_to_boxes[im_name], box, name_to_pids[im_name], index)
+                set_box_pid(name_to_boxes[im_name], box, name_to_pids[im_name], index)
+
                 # gallery
                 gallery = item["Gallery"].squeeze()
-                for im_name, box, __ in gallery:
+                for im_name, box, _ in gallery:
                     im_name = str(im_name[0])
                     if box.size == 0:
                         break
                     box = box.squeeze().astype(np.int32)
-                    _set_box_pid(name_to_boxes[im_name], box, name_to_pids[im_name], index)
+                    set_box_pid(name_to_boxes[im_name], box, name_to_pids[im_name], index)
 
         # Construct the gt_roidb
         gt_roidb = []
-        for im_name in self.image_index:
+        for i, im_name in enumerate(self.image_index):
             boxes = name_to_boxes[im_name]
             boxes[:, 2] += boxes[:, 0]
             boxes[:, 3] += boxes[:, 1]
             pids = name_to_pids[im_name]
-            num_objs = len(boxes)
-            gt_classes = np.ones((num_objs), dtype=np.int32)
-            overlaps = np.zeros((num_objs, self.num_classes), dtype=np.float32)
-            overlaps[:, 1] = 1.0
-            overlaps = csr_matrix(overlaps)
+            size = Image.open(self.image_path_at(i)).size
             gt_roidb.append(
                 {
                     "boxes": boxes,
-                    "gt_classes": gt_classes,
-                    "gt_overlaps": overlaps,
                     "gt_pids": pids,
+                    "image": self.image_path_at(i),
+                    "height": size[1],
+                    "width": size[0],
                     "flipped": False,
                 }
             )
 
         pickle(gt_roidb, cache_file)
-        print("wrote gt roidb to {}".format(cache_file))
+        print("Wrote gt roidb to %s" % cache_file)
 
         return gt_roidb
 
@@ -163,7 +207,7 @@ class psdb(imdb):
             ious = np.zeros((num_gt, num_det), dtype=np.float32)
             for i in range(num_gt):
                 for j in range(num_det):
-                    ious[i, j] = _compute_iou(gt_boxes[i], det[j, :4])
+                    ious[i, j] = compute_iou(gt_boxes[i], det[j, :4])
             tfmat = ious >= iou_thresh
             # for each det, keep only the largest iou of all the gt
             for j in range(num_det):
@@ -188,7 +232,7 @@ class psdb(imdb):
 
         det_rate = count_tp * 1.0 / count_gt
         ap = average_precision_score(y_true, y_score) * det_rate
-        _, recall, __ = precision_recall_curve(y_true, y_score)
+        _, recall, _ = precision_recall_curve(y_true, y_score)
         recall *= det_rate
 
         print("{} detection:".format("labeled only" if labeled_only else "all"))
@@ -211,15 +255,14 @@ class psdb(imdb):
         assert self.num_images == len(gallery_feat)
         assert len(self.probes) == len(probe_feat)
 
-        # TODO: support evaluation on training split
         use_full_set = gallery_size == -1
         fname = "TestG{}".format(gallery_size if not use_full_set else 50)
-        protoc = loadmat(osp.join(self._root_dir, "annotation/test/train_test",
+        protoc = loadmat(osp.join(self.root_dir, "annotation/test/train_test",
                                   fname + ".mat"))[fname].squeeze()
 
         # mapping from gallery image to (det, feat)
         name_to_det_feat = {}
-        for name, det, feat in zip(self._image_index, gallery_det, gallery_feat):
+        for name, det, feat in zip(self.image_index, gallery_det, gallery_feat):
             scores = det[:, 4].ravel()
             inds = np.where(scores >= det_thresh)[0]
             if len(inds) > 0:
@@ -228,7 +271,7 @@ class psdb(imdb):
         aps = []
         accs = []
         topk = [1, 5, 10]
-        ret = {"image_root": self._data_path, "results": []}
+        ret = {"image_root": self.data_path, "results": []}
         for i in range(len(self.probes)):
             y_true, y_score = [], []
             imgs, rois = [], []
@@ -268,7 +311,7 @@ class psdb(imdb):
                     det = det[inds]
                     # only set the first matched det as true positive
                     for j, roi in enumerate(det[:, :4]):
-                        if _compute_iou(roi, gt) >= iou_thresh:
+                        if compute_iou(roi, gt) >= iou_thresh:
                             label[j] = 1
                             count_tp += 1
                             break
@@ -279,7 +322,7 @@ class psdb(imdb):
                 tested.add(gallery_imname)
             # 2. Go through the remaining gallery images if using full set
             if use_full_set:
-                for gallery_imname in self._image_index:
+                for gallery_imname in self.image_index:
                     if gallery_imname in tested:
                         continue
                     if gallery_imname not in name_to_det_feat:
@@ -337,95 +380,3 @@ class psdb(imdb):
                 os.makedirs(osp.dirname(dump_json))
             with open(dump_json, "w") as f:
                 json.dump(ret, f)
-
-    def evaluate_cls(self, detections, pid_ranks, pid_labels, det_thresh=0.5):
-        """
-        detections (list of ndarray): n_det x [x1, x2, y1, y2, score] per image
-        pid_ranks (list of ndarray): n_det x top_k cls scores per image
-        pid_labels (list of ndarray): n_det x 1 ground truth identities
-        det_thresh (float): filter out gallery detections whose scores below this
-        """
-        assert len(detections) == len(pid_ranks)
-        assert len(detections) == len(pid_labels)
-
-        # Get the num of identities in the imdb
-        gt_roidb = self.gt_roidb()
-        max_pid = 0
-        for item in gt_roidb:
-            max_pid = max(max_pid, max(item["gt_pids"]))
-
-        # In the extracted pid_labels:
-        #   -1 for unlabeled person,
-        #   {0, 1, ..., max_pid-1} for labeled person
-        #   max_pid for background clutter
-        count_ul, count_lb, count_bg = 0, 0, 0
-        y_pred, y_true = [], []
-        for dets, ranks, labels in zip(detections, pid_ranks, pid_labels):
-            assert len(dets) == len(ranks)
-            assert len(dets) == len(labels)
-            for det, rank, label in zip(dets, ranks, labels):
-                if det[-1] < det_thresh:
-                    continue
-                label = int(round(label))
-                if label == -1:
-                    count_ul += 1
-                    continue
-                if label == max_pid:
-                    count_bg += 1
-                    continue
-                count_lb += 1
-                y_pred.append(rank)
-                y_true.append(label)
-
-        # some statistics
-        print("classifiction:")
-        print("  number of background clutter =", count_bg)
-        print("  number of unlabeled =", count_ul)
-        print("  number of labeled =", count_lb)
-
-        # top-k classification accuracies
-        correct = np.asarray(y_pred) == np.asarray(y_true)[:, np.newaxis]
-        for top_k in [1, 5, 10]:
-            acc = correct[:, :top_k].sum(axis=1).mean()
-            print("  top-{} accuracy = {:.2%}".format(top_k, acc))
-
-    @staticmethod
-    def _get_default_path():
-        return osp.join(cfg.DATA_DIR, "psdb", "dataset")
-
-    def _load_image_set_index(self):
-        """
-        Load the indexes for the specific subset (train / test).
-        For PSDB, the index is just the image file name.
-        """
-        # test pool
-        test = loadmat(osp.join(self._root_dir, "annotation", "pool.mat"))
-        test = test["pool"].squeeze()
-        test = [str(a[0]) for a in test]
-        if self._image_set == "test":
-            return test
-        # all images
-        all_imgs = loadmat(osp.join(self._root_dir, "annotation", "Images.mat"))
-        all_imgs = all_imgs["Img"].squeeze()
-        all_imgs = [str(a[0][0]) for a in all_imgs]
-        # training
-        train = list(set(all_imgs) - set(test))
-        train.sort()
-        # random.shuffle(train)
-        return train
-
-    def _load_probes(self):
-        """
-        Load the list of (img, roi) for probes. For test split, it's defined
-        by the protocol. For training split, will randomly choose some samples
-        from the gallery as probes.
-        """
-        protoc = loadmat(osp.join(self._root_dir,
-                                  "annotation/test/train_test/TestG50.mat"))["TestG50"].squeeze()
-        probes = []
-        for item in protoc["Query"]:
-            im_name = osp.join(self._data_path, str(item["imname"][0, 0][0]))
-            roi = item["idlocate"][0, 0][0].astype(np.int32)
-            roi[2:] += roi[:2]
-            probes.append((im_name, roi))
-        return probes

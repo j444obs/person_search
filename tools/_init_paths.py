@@ -1,6 +1,6 @@
 """
-@Author: 520Chris
-@Description: Initialize PYTHONPATH.
+Author: 520Chris
+Description: Initialize PYTHONPATH.
 """
 
 import os.path as osp

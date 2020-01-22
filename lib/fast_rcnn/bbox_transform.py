@@ -1,6 +1,6 @@
 """
-@Author: Ross Girshick
-@Description: Tools about bounding box
+Author: Ross Girshick
+Description: Tools for bounding box
 """
 
 import numpy as np
@@ -68,29 +68,36 @@ def clip_boxes(boxes, im_shape):
     return boxes
 
 
-def bbox_overlaps(anchors, gt_boxes):
+def bbox_overlaps(boxes, query_boxes):
     """Compute the overlaps between anchors and gt_boxes."""
-    N = anchors.size(0)
-    K = gt_boxes.size(0)
+    boxes = torch.from_numpy(boxes)
+    query_boxes = torch.from_numpy(query_boxes)
 
-    gt_boxes_area = ((gt_boxes[:, 2] - gt_boxes[:, 0] + 1) *
-                     (gt_boxes[:, 3] - gt_boxes[:, 1] + 1)).view(1, K)
+    box_areas = (boxes[:, 2] - boxes[:, 0] + 1) * (boxes[:, 3] - boxes[:, 1] + 1)
+    query_areas = ((query_boxes[:, 2] - query_boxes[:, 0] + 1) *
+                   (query_boxes[:, 3] - query_boxes[:, 1] + 1))
 
-    anchors_area = ((anchors[:, 2] - anchors[:, 0] + 1) *
-                    (anchors[:, 3] - anchors[:, 1] + 1)).view(N, 1)
-
-    boxes = anchors.view(N, 1, 4).expand(N, K, 4)
-    query_boxes = gt_boxes.view(1, K, 4).expand(N, K, 4)
-
-    iw = (torch.min(boxes[:, :, 2], query_boxes[:, :, 2]) -
-          torch.max(boxes[:, :, 0], query_boxes[:, :, 0]) + 1)
-    iw[iw < 0] = 0
-
-    ih = (torch.min(boxes[:, :, 3], query_boxes[:, :, 3]) -
-          torch.max(boxes[:, :, 1], query_boxes[:, :, 1]) + 1)
-    ih[ih < 0] = 0
-
-    ua = anchors_area + gt_boxes_area - (iw * ih)
+    iw = (torch.min(boxes[:, 2:3], query_boxes[:, 2:3].t()) -
+          torch.max(boxes[:, 0:1], query_boxes[:, 0:1].t()) + 1).clamp(min=0)
+    ih = (torch.min(boxes[:, 3:4], query_boxes[:, 3:4].t()) -
+          torch.max(boxes[:, 1:2], query_boxes[:, 1:2].t()) + 1).clamp(min=0)
+    ua = box_areas.view(-1, 1) + query_areas.view(1, -1) - iw * ih
     overlaps = iw * ih / ua
 
-    return overlaps
+    return overlaps.numpy()
+
+
+def filter_boxes(boxes, min_size):
+    """Remove all boxes with any side smaller than min_size."""
+    ws = boxes[:, 2] - boxes[:, 0] + 1
+    hs = boxes[:, 3] - boxes[:, 1] + 1
+    keep = np.where((ws >= min_size) & (hs >= min_size))[0]
+    return keep
+
+
+def compute_targets(ex_rois, gt_rois):
+    """Compute bounding-box regression targets for an image."""
+    assert ex_rois.shape[0] == gt_rois.shape[0]
+    assert ex_rois.shape[1] == 4
+    assert gt_rois.shape[1] >= 5
+    return bbox_transform(ex_rois, gt_rois[:, :4]).astype(np.float32, copy=False)
