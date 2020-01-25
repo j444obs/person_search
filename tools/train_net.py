@@ -12,7 +12,7 @@ import numpy as np
 import torch
 
 from datasets.factory import get_imdb
-from fast_rcnn.config import cfg, cfg_from_file, cfg_from_list, get_output_dir
+from utils.config import cfg, cfg_from_file, cfg_from_list, get_output_dir
 from models.network import Network
 from roi_data_layer.dataloader import DataLoader
 

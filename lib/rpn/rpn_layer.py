@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from fast_rcnn.config import cfg
+from utils.config import cfg
 from rpn.anchor_target_layer import AnchorTargetLayer
 from rpn.proposal_layer import ProposalLayer
 from utils.net_utils import smooth_l1_loss

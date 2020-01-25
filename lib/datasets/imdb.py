@@ -9,7 +9,7 @@ import os.path as osp
 
 from PIL import Image
 
-from fast_rcnn.config import cfg
+from utils.config import cfg
 
 
 class IMDB:

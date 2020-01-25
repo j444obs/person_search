@@ -6,7 +6,7 @@ Description: Test utils for person search.
 import numpy as np
 import cv2
 
-from fast_rcnn.config import cfg
+from utils.config import cfg
 from utils.blob import im_list_to_blob
 
 

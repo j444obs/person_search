@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.ops import RoIAlign, RoIPool
 
-from fast_rcnn.config import cfg, cfg_from_file, get_output_dir
+from utils.config import cfg, cfg_from_file, get_output_dir
 from models.base_feat_layer import BaseFeatLayer
 from models.proposal_feat_layer import ProposalFeatLayer
 from roi_data_layer.dataloader import DataLoader

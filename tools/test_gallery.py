@@ -10,8 +10,8 @@ import torch
 from torchvision.ops import nms
 from tqdm import tqdm
 
-from fast_rcnn.bbox_transform import bbox_transform_inv, clip_boxes
-from fast_rcnn.config import cfg
+from utils.bbox_transform import bbox_transform_inv, clip_boxes
+from utils.config import cfg
 from test_utils import get_image_blob
 
 

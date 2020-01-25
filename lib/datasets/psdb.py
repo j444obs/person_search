@@ -11,10 +11,10 @@ import os.path as osp
 import numpy as np
 from PIL import Image
 from scipy.io import loadmat
-from sklearn.metrics import average_precision_score, precision_recall_curve
+from sklearn.metrics import average_precision_score
 
 from datasets.imdb import IMDB
-from fast_rcnn.config import cfg
+from utils.config import cfg
 from utils import pickle, unpickle
 
 
@@ -232,8 +232,6 @@ class PSDB(IMDB):
 
         det_rate = count_tp * 1.0 / count_gt
         ap = average_precision_score(y_true, y_score) * det_rate
-        _, recall, _ = precision_recall_curve(y_true, y_score)
-        recall *= det_rate
 
         print("%s detection:" % ("Labeled only" if labeled_only else "All"))
         print("  Recall = %.2f" % det_rate)

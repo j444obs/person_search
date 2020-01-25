@@ -5,7 +5,7 @@ Description: Data loader for the network.
 
 import numpy as np
 
-from fast_rcnn.config import cfg
+from utils.config import cfg
 from roi_data_layer.minibatch import get_minibatch
 
 

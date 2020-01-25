@@ -8,8 +8,8 @@ import torch
 import torch.nn as nn
 from torchvision.ops import nms
 
-from fast_rcnn.bbox_transform import bbox_transform_inv, clip_boxes, filter_boxes
-from fast_rcnn.config import cfg
+from utils.bbox_transform import bbox_transform_inv, clip_boxes, filter_boxes
+from utils.config import cfg
 from rpn.generate_anchors import generate_anchors
 
 

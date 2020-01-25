@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 import numpy.random as npr
 
-from fast_rcnn.config import cfg
+from utils.config import cfg
 
 
 def get_minibatch(roidb):
