@@ -9,8 +9,8 @@ import torch
 import torch.nn as nn
 
 from rpn.generate_anchors import generate_anchors
-from utils.bbox_transform import bbox_overlaps, compute_targets
 from utils.config import cfg
+from utils.net_utils import bbox_overlaps, compute_targets
 
 
 class AnchorTargetLayer(nn.Module):

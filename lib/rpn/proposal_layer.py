@@ -9,8 +9,8 @@ import torch.nn as nn
 from torchvision.ops import nms
 
 from rpn.generate_anchors import generate_anchors
-from utils.bbox_transform import bbox_transform_inv, clip_boxes, filter_boxes
 from utils.config import cfg
+from utils.net_utils import bbox_transform_inv, clip_boxes, filter_boxes
 
 
 class ProposalLayer(nn.Module):

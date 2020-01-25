@@ -8,8 +8,8 @@ import numpy.random as npr
 import torch
 import torch.nn as nn
 
-from utils.bbox_transform import bbox_overlaps, bbox_transform
 from utils.config import cfg
+from utils.net_utils import bbox_overlaps, bbox_transform
 
 
 class ProposalTargetLayer(nn.Module):
