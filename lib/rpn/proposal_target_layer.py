@@ -28,7 +28,7 @@ class ProposalTargetLayer(nn.Module):
         # (i.e., rpn.proposal_layer.ProposalLayer), or any other source
         all_rois = all_rois.numpy()
 
-        # GT boxes (x1, y1, x2, y2, label)
+        # GT boxes (x1, y1, x2, y2, class, pid)
         gt_boxes = gt_boxes.numpy()
 
         # Include ground-truth boxes in the set of candidate rois

@@ -19,7 +19,7 @@ from utils.config import cfg, cfg_from_file, get_output_dir
 
 
 class Network(nn.Module):
-    """Person search network"""
+    """Person search network."""
 
     def __init__(self):
         super(Network, self).__init__()
@@ -61,7 +61,7 @@ class Network(nn.Module):
         # If it is training phase, then use ground truth bboxes for refining
         if self.training:
             roi_data = self.proposal_target_layer(self.rois, gt_boxes)
-            rois, rois_label, rois_target, rois_inside_ws, rois_outside_ws, aux_label = roi_data
+            self.rois, rois_label, rois_target, rois_inside_ws, rois_outside_ws, aux_label = roi_data
         else:
             rois_label, rois_target, rois_inside_ws, rois_outside_ws, aux_label = [None] * 5
 

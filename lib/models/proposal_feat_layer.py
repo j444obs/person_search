@@ -1,14 +1,14 @@
 """
 Author: 520Chris
 Description: Extract the features of region proposals to identify
-              the classes and regression targets.
+             the classes and regression targets.
 """
 
 import torch.nn as nn
 
 
 class ProposalFeatLayer(nn.Module):
-    """Extract the features of region proposals"""
+    """Extract the features of region proposals."""
 
     def __init__(self):
         super(ProposalFeatLayer, self).__init__()

@@ -1,6 +1,6 @@
 """
 Author: Ross Girshick
-Description: Tools for bounding box.
+Description: Tools for bounding box transform.
 """
 
 import numpy as np

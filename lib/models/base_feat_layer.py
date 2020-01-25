@@ -1,7 +1,7 @@
 """
 Author: 520Chris
 Description: Extract the basic features of the images, which is for RPN and
-              predicting the classes and regression target of each proposal.
+             predicting the classes and regression target of each proposal.
 """
 
 import torch.nn as nn

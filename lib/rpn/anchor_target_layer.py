@@ -21,11 +21,11 @@ class AnchorTargetLayer(nn.Module):
 
     def __init__(self):
         super(AnchorTargetLayer, self).__init__()
-        self._feat_stride = cfg.FEAT_STRIDE[0]
-        self._anchors = generate_anchors(ratios=np.array(cfg.ANCHOR_RATIOS),
-                                         scales=np.array(cfg.ANCHOR_SCALES))
-        self._num_anchors = self._anchors.shape[0]
-        self._allowed_border = 0  # allow boxes to sit over the edge by a small amount
+        self.feat_stride = cfg.FEAT_STRIDE[0]
+        self.anchors = generate_anchors(ratios=np.array(cfg.ANCHOR_RATIOS),
+                                        scales=np.array(cfg.ANCHOR_SCALES))
+        self.num_anchors = self.anchors.shape[0]
+        self.allowed_border = 0  # allow boxes to sit over the edge by a small amount
 
     def forward(self, rpn_cls_score, gt_boxes, im_info, use_rand=True):
         # Algorithm:
@@ -43,8 +43,8 @@ class AnchorTargetLayer(nn.Module):
         im_info = im_info[0].numpy()
 
         # 1. Generate proposals from bbox deltas and shifted anchors
-        shift_x = np.arange(0, width) * self._feat_stride
-        shift_y = np.arange(0, height) * self._feat_stride
+        shift_x = np.arange(0, width) * self.feat_stride
+        shift_y = np.arange(0, height) * self.feat_stride
         shift_x, shift_y = np.meshgrid(shift_x, shift_y)
         shifts = np.vstack((shift_x.ravel(), shift_y.ravel(),
                             shift_x.ravel(), shift_y.ravel())).transpose()
@@ -53,17 +53,17 @@ class AnchorTargetLayer(nn.Module):
         # cell K shifts (K, 1, 4) to get
         # shift anchors (K, A, 4)
         # reshape to (K * A, 4) shifted anchors
-        A = self._num_anchors
+        A = self.num_anchors
         K = shifts.shape[0]
-        anchors = self._anchors.reshape((1, A, 4)) + shifts.reshape((1, K, 4)).transpose((1, 0, 2))
+        anchors = self.anchors.reshape((1, A, 4)) + shifts.reshape((1, K, 4)).transpose((1, 0, 2))
         anchors = anchors.reshape((K * A, 4))
         total_anchors = int(K * A)
 
         # only keep anchors inside the image
-        inds_inside = np.where((anchors[:, 0] >= -self._allowed_border) &
-                               (anchors[:, 1] >= -self._allowed_border) &
-                               (anchors[:, 2] < im_info[1] + self._allowed_border) &  # width
-                               (anchors[:, 3] < im_info[0] + self._allowed_border))[0]  # height
+        inds_inside = np.where((anchors[:, 0] >= -self.allowed_border) &
+                               (anchors[:, 1] >= -self.allowed_border) &
+                               (anchors[:, 2] < im_info[1] + self.allowed_border) &  # width
+                               (anchors[:, 3] < im_info[0] + self.allowed_border))[0]  # height
 
         # keep only inside anchors
         anchors = anchors[inds_inside, :]
@@ -167,7 +167,7 @@ class AnchorTargetLayer(nn.Module):
 
 
 def unmap(data, count, inds, fill=0):
-    """Unmap a subset of items (data) back to the original set of items (of size count)"""
+    """Unmap a subset of items (data) back to the original set of items (of size count)."""
     if len(data.shape) == 1:
         ret = np.empty((count, ), dtype=np.float32)
         ret.fill(fill)

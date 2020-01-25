@@ -1,16 +1,15 @@
 """
 Author: https://github.com/jwyang/faster-rcnn.pytorch.git
-Description: Utils for training network
+Description: Utils for training network.
 """
 
 import torch
 
 
-def smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights,
-                   bbox_outside_weights, sigma=1.0, dim=None):
+def smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights, sigma=1.0, dim=None):
     """Compute smooth L1 loss."""
     dim = [1] if dim is None else dim
-    sigma_2 = sigma ** 2
+    sigma_2 = sigma**2
     box_diff = bbox_pred - bbox_targets
     in_box_diff = bbox_inside_weights * box_diff
     abs_in_box_diff = torch.abs(in_box_diff)
