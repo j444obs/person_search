@@ -3,11 +3,11 @@ Author: https://github.com/ShuangLI59/person_search.git
 Description: Test utils for person search.
 """
 
-import numpy as np
 import cv2
+import numpy as np
 
+from roi_data_layer.minibatch import im_list_to_blob
 from utils.config import cfg
-from utils.blob import im_list_to_blob
 
 
 def get_image_blob(im):

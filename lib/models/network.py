@@ -10,12 +10,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.ops import RoIAlign, RoIPool
 
-from utils.config import cfg, cfg_from_file, get_output_dir
 from models.base_feat_layer import BaseFeatLayer
 from models.proposal_feat_layer import ProposalFeatLayer
 from roi_data_layer.dataloader import DataLoader
 from rpn.proposal_target_layer import ProposalTargetLayer
 from rpn.rpn_layer import RPN
+from utils.config import cfg, cfg_from_file, get_output_dir
 
 
 class Network(nn.Module):
@@ -46,7 +46,7 @@ class Network(nn.Module):
         self.feat_lowdim = nn.Linear(2048, 256)
 
     def forward(self, im_data, im_info, gt_boxes, is_prob=False, rois=None):
-        assert im_data.size(0) == 1, 'Only single item batches are supported'
+        assert im_data.size(0) == 1, 'Single batch only.'
 
         # Extract basic feature from image data
         base_feat = self.base_feat_layer(im_data)

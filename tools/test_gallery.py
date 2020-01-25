@@ -10,9 +10,9 @@ import torch
 from torchvision.ops import nms
 from tqdm import tqdm
 
+from test_utils import get_image_blob
 from utils.bbox_transform import bbox_transform_inv, clip_boxes
 from utils.config import cfg
-from test_utils import get_image_blob
 
 
 def im_detect(net, im):

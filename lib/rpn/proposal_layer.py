@@ -8,9 +8,9 @@ import torch
 import torch.nn as nn
 from torchvision.ops import nms
 
+from rpn.generate_anchors import generate_anchors
 from utils.bbox_transform import bbox_transform_inv, clip_boxes, filter_boxes
 from utils.config import cfg
-from rpn.generate_anchors import generate_anchors
 
 
 class ProposalLayer(nn.Module):
@@ -40,7 +40,7 @@ class ProposalLayer(nn.Module):
         # take after_nms_topN proposals after NMS
         # return the top proposals (-> RoIs top, scores top)
 
-        assert scores.size(0) == 1, 'Only single item batches are supported'
+        assert scores.size(0) == 1, 'Single batch only.'
 
         cfg_key = 'TRAIN' if self.training else 'TEST'
         pre_nms_topN = cfg[cfg_key].RPN_PRE_NMS_TOP_N

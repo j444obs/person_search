@@ -1,6 +1,6 @@
 """
 Author: Ross Girshick and Sean Bell
-Description: Assign labels and regression targets to region proposals
+Description: Assign labels and regression targets to region proposals.
 """
 
 import numpy as np
@@ -36,7 +36,7 @@ class ProposalTargetLayer(nn.Module):
         all_rois = np.vstack((all_rois, np.hstack((zeros, gt_boxes[:, :4]))))
 
         # Sanity check: single batch only
-        assert np.all(all_rois[:, 0] == 0), 'Only single item batches are supported'
+        assert np.all(all_rois[:, 0] == 0), 'Single batch only.'
 
         num_images = 1
         rois_per_image = int(cfg.TRAIN.BATCH_SIZE / num_images)

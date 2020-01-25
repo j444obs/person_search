@@ -1,6 +1,6 @@
 """
 Author: Ross Girshick and Sean Bell
-Description: Assign labels and regression targets to anchors
+Description: Assign labels and regression targets to anchors.
 """
 
 import numpy as np
@@ -8,9 +8,9 @@ import numpy.random as npr
 import torch
 import torch.nn as nn
 
+from rpn.generate_anchors import generate_anchors
 from utils.bbox_transform import bbox_overlaps, compute_targets
 from utils.config import cfg
-from rpn.generate_anchors import generate_anchors
 
 
 class AnchorTargetLayer(nn.Module):
@@ -36,7 +36,7 @@ class AnchorTargetLayer(nn.Module):
         # filter out-of-image anchors
         # measure GT overlap
 
-        assert rpn_cls_score.size(0) == 1, 'Only single item batches are supported'
+        assert rpn_cls_score.size(0) == 1, 'Single batch only.'
 
         height, width = rpn_cls_score.shape[-2:]
         gt_boxes = gt_boxes.numpy()  # gt_boxes: (x1, y1, x2, y2, class, pid)

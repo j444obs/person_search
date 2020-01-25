@@ -5,8 +5,8 @@ Description: Data loader for the network.
 
 import numpy as np
 
-from utils.config import cfg
 from roi_data_layer.minibatch import get_minibatch
+from utils.config import cfg
 
 
 class DataLoader:

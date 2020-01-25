@@ -14,8 +14,8 @@ from scipy.io import loadmat
 from sklearn.metrics import average_precision_score
 
 from datasets.imdb import IMDB
-from utils.config import cfg
 from utils import pickle, unpickle
+from utils.config import cfg
 
 
 def compute_iou(a, b):

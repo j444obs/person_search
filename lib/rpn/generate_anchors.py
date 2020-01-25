@@ -1,6 +1,6 @@
 """
 Author: Ross Girshick and Sean Bell
-Description: Generate 9 anchors for each cell in feature map
+Description: Generate 9 anchors for each cell in feature map.
 """
 
 import numpy as np

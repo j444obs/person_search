@@ -7,14 +7,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils.config import cfg
 from rpn.anchor_target_layer import AnchorTargetLayer
 from rpn.proposal_layer import ProposalLayer
+from utils.config import cfg
 from utils.net_utils import smooth_l1_loss
 
 
 class RPN(nn.Module):
-    """Region proposal network"""
+    """Region proposal network."""
 
     def __init__(self, input_depth):
         super(RPN, self).__init__()
@@ -44,7 +44,7 @@ class RPN(nn.Module):
         return x
 
     def forward(self, base_feat, im_info, gt_boxes):
-        assert base_feat.size(0) == 1, 'Only single item batches are supported'
+        assert base_feat.size(0) == 1, 'Single batch only.'
 
         # Return feature map after conv-relu layer
         rpn_conv = F.relu(self.rpn_conv(base_feat), inplace=True)
@@ -65,29 +65,21 @@ class RPN(nn.Module):
         self.rpn_loss_cls = 0
         self.rpn_loss_box = 0
 
-        # Generating training labels and compute the rpn loss
         if self.training:
             assert gt_boxes is not None
 
             rpn_data = self.rpn_anchor_target(rpn_cls_score.data, gt_boxes, im_info)
 
-            # Compute classification loss
+            # Classification loss
             rpn_cls_score = rpn_cls_score_reshape.permute(0, 2, 3, 1).contiguous().view(1, -1, 2)
             rpn_label = rpn_data[0].view(1, -1)
-
             rpn_keep = rpn_label.view(-1).ne(-1).nonzero().view(-1)
             rpn_cls_score = torch.index_select(rpn_cls_score.view(-1, 2), 0, rpn_keep)
-            rpn_label = torch.index_select(rpn_label.view(-1), 0, rpn_keep.data)
-            rpn_label = rpn_label.long()
+            rpn_label = torch.index_select(rpn_label.view(-1), 0, rpn_keep.data).long()
             self.rpn_loss_cls = F.cross_entropy(rpn_cls_score, rpn_label)
 
+            # Bounding box regression loss
             rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights = rpn_data[1:]
-
-            # Compute bbox regression loss
-            # rpn_bbox_inside_weights = Variable(rpn_bbox_inside_weights)
-            # rpn_bbox_outside_weights = Variable(rpn_bbox_outside_weights)
-            # rpn_bbox_targets = Variable(rpn_bbox_targets)
-
             self.rpn_loss_box = smooth_l1_loss(rpn_bbox_pred,
                                                rpn_bbox_targets,
                                                rpn_bbox_inside_weights,
