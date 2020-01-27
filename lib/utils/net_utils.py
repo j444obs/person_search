@@ -103,14 +103,13 @@ def compute_targets(ex_rois, gt_rois):
     return bbox_transform(ex_rois, gt_rois[:, :4]).astype(np.float32, copy=False)
 
 
-def smooth_l1_loss(pred, targets, inside_ws, outside_ws, sigma=1.0, dim=None):
+def smooth_l1_loss(pred, targets, inside_ws, outside_ws, sigma=1):
     """
     Compute smooth l1 loss for faster-rcnn network.
 
         f(x) = 0.5 * (sigma * x)^2          if |x| < 1 / sigma / sigma
                |x| - 0.5 / sigma / sigma    otherwise
     """
-    dim = [1] if dim is None else dim
     sigma_2 = sigma ** 2
     x = inside_ws * (pred - targets)
     sign = (x.abs() < 1 / sigma_2).detach().int()

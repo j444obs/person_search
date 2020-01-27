@@ -1,8 +1,3 @@
-"""
-Author: https://github.com/jwyang/faster-rcnn.pytorch.git
-Description: Implementation of deep residual network
-"""
-
 import math
 
 import torch.nn as nn
@@ -25,7 +20,7 @@ def conv3x3(in_planes, out_planes, stride=1):
 
 
 class BasicBlock(nn.Module):
-    """Basic block for resnet{18, 34}"""
+    """Basic block for resnet{18, 34}."""
     # Feature map with k channels will be k * expansion channels after BasicBlock
     expansion = 1
 
@@ -59,7 +54,7 @@ class BasicBlock(nn.Module):
 
 
 class Bottleneck(nn.Module):
-    """Bottleneck for resnet{50, 101, 152}"""
+    """Bottleneck for resnet{50, 101, 152}."""
     # Feature map with k channels will be k * expansion channels after Bottleneck
     expansion = 4
 
@@ -100,7 +95,7 @@ class Bottleneck(nn.Module):
 
 
 class ResNet(nn.Module):
-    """Build a deep residual network"""
+    """Build a deep residual network."""
 
     def __init__(self, block, layers, num_classes=1000):
         super(ResNet, self).__init__()

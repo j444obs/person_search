@@ -50,11 +50,11 @@ class ProposalTargetLayer(nn.Module):
         bbox_outside_weights = np.array(bbox_inside_weights > 0).astype(np.float32)
 
         return (torch.from_numpy(rois),
-                torch.from_numpy(labels),
+                torch.from_numpy(labels).long(),
                 torch.from_numpy(bbox_targets),
                 torch.from_numpy(bbox_inside_weights),
                 torch.from_numpy(bbox_outside_weights),
-                torch.from_numpy(aux_label))
+                torch.from_numpy(aux_label).long())
 
 
 def get_bbox_regression_labels(bbox_target_data, num_classes):

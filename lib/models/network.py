@@ -3,8 +3,6 @@ Author: 520Chris
 Description: person search network based on resnet50.
 """
 
-import pickle
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -12,10 +10,12 @@ from torchvision.ops import RoIAlign, RoIPool
 
 from models.base_feat_layer import BaseFeatLayer
 from models.proposal_feat_layer import ProposalFeatLayer
-from roi_data_layer.dataloader import DataLoader
+from oim.labeled_matching_layer import LabeledMatchingLayer
+from oim.unlabeled_matching_layer import UnlabeledMatchingLayer
 from rpn.proposal_target_layer import ProposalTargetLayer
 from rpn.rpn_layer import RPN
-from utils.config import cfg, cfg_from_file, get_output_dir
+from utils.config import cfg
+from utils.net_utils import smooth_l1_loss
 
 
 class Network(nn.Module):
@@ -24,7 +24,7 @@ class Network(nn.Module):
     def __init__(self):
         super(Network, self).__init__()
         rpn_depth = 1024  # depth of the feature map fed into RPN
-        num_classes = 2  # bg and fg
+        num_classes = 2   # bg and fg
 
         # Extracting feature layer
         self.base_feat_layer = BaseFeatLayer()
@@ -44,6 +44,8 @@ class Network(nn.Module):
         self.det_score = nn.Linear(2048, 2)
         self.bbox_pred = nn.Linear(2048, num_classes * 4)
         self.feat_lowdim = nn.Linear(2048, 256)
+        self.labeled_matching_layer = LabeledMatchingLayer()
+        self.unlabeled_matching_layer = UnlabeledMatchingLayer()
 
     def forward(self, im_data, im_info, gt_boxes, is_prob=False, rois=None):
         assert im_data.size(0) == 1, 'Single batch only.'
@@ -55,15 +57,15 @@ class Network(nn.Module):
             # Feed base feature map to RPN to obtain rois
             self.rois, rpn_loss_cls, rpn_loss_box = self.rpn(base_feat, im_info, gt_boxes)
         else:
-            assert rois is not None, "rois is not given in detect probe mode."
+            assert rois is not None, "RoIs is not given in detect probe mode."
             self.rois, rpn_loss_cls, rpn_loss_box = rois, 0, 0
 
-        # If it is training phase, then use ground truth bboxes for refining
         if self.training:
+            # Sample 128 rois and assign them labels and bbox regression targets
             roi_data = self.proposal_target_layer(self.rois, gt_boxes)
-            self.rois, rois_label, rois_target, rois_inside_ws, rois_outside_ws, aux_label = roi_data
+            self.rois, rois_label, rois_target, rois_inside_ws, rois_outside_ws, pid_label = roi_data
         else:
-            rois_label, rois_target, rois_inside_ws, rois_outside_ws, aux_label = [None] * 5
+            rois_label, rois_target, rois_inside_ws, rois_outside_ws, pid_label = [None] * 5
 
         # Do roi pooling based on region proposals
         if cfg.POOLING_MODE == 'align':
@@ -80,32 +82,23 @@ class Network(nn.Module):
         bbox_pred = self.bbox_pred(proposal_feat)
         feat_lowdim = F.normalize(self.feat_lowdim(proposal_feat))
 
-        return det_score, bbox_pred, feat_lowdim
+        if self.training:
+            det_loss = F.cross_entropy(det_score, rois_label)
+            loss_bbox = smooth_l1_loss(bbox_pred,
+                                       rois_target,
+                                       rois_inside_ws,
+                                       rois_outside_ws)
 
-    # def init_from_caffe(self):
-    #     dict_new = self.state_dict().copy()
-    #     caffe_weights = pickle.load(open('caffe_model_weights.pkl', "rb"), encoding='latin1')
-    #     for k in self.state_dict():
-    #         frags = k.split('.')
+            # OIM loss
+            feat = F.normalize(feat_lowdim)
+            labeled_matching_scores, id_labels = self.labeled_matching_layer(feat, pid_label)
+            labeled_matching_scores *= 10
+            unlabeled_matching_scores = self.unlabeled_matching_layer(feat, pid_label)
+            unlabeled_matching_scores *= 10
+            id_scores = torch.cat((labeled_matching_scores, unlabeled_matching_scores), dim=1)
+            id_prob = F.softmax(id_scores, dim=1)
+            id_loss = F.cross_entropy(id_prob, id_labels, ignore_index=-1)
+        else:
+            det_loss, loss_bbox, id_loss = 0, 0, 0
 
-    #         # Layer name mapping
-    #         if frags[-2] == 'rpn_conv':
-    #             name = 'rpn_conv/3x3'
-    #         if frags[-2] in ['id_det_score', 'id_bbox_pred', 'id_feat_lowdim']:
-    #             name = frags[-2][3:]
-    #         elif frags[-2] in ['rpn_cls_score', 'rpn_bbox_pred']:
-    #             name = frags[-2]
-    #         else:
-    #             name = 'caffe.' + frags[-2]
-
-    #         if name not in caffe_weights:
-    #             print("Layer: %s not found" % k)
-    #             continue
-
-    #         if frags[-1] == 'weight':
-    #             dict_new[k] = torch.from_numpy(caffe_weights[name][0]).reshape(dict_new[k].shape)
-    #         else:
-    #             dict_new[k] = torch.from_numpy(caffe_weights[name][1]).reshape(dict_new[k].shape)
-
-    #     net.load_state_dict(dict_new)
-    #     print("load caffe model successfully!")
+        return det_score, bbox_pred, feat_lowdim, rpn_loss_cls, rpn_loss_box, det_loss, loss_bbox, id_loss
