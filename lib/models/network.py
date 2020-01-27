@@ -41,7 +41,7 @@ class Network(nn.Module):
         self.roi_pool = RoIPool((pool_size, pool_size), 1.0 / 16.0)
 
         # Identification layer
-        self.det_score = nn.Linear(2048, 2)
+        self.cls_score = nn.Linear(2048, 2)
         self.bbox_pred = nn.Linear(2048, num_classes * 4)
         self.feat_lowdim = nn.Linear(2048, 256)
         self.labeled_matching_layer = LabeledMatchingLayer()
@@ -55,10 +55,10 @@ class Network(nn.Module):
 
         if not is_prob:
             # Feed base feature map to RPN to obtain rois
-            self.rois, rpn_loss_cls, rpn_loss_box = self.rpn(base_feat, im_info, gt_boxes)
+            self.rois, rpn_loss_cls, rpn_loss_bbox = self.rpn(base_feat, im_info, gt_boxes)
         else:
             assert rois is not None, "RoIs is not given in detect probe mode."
-            self.rois, rpn_loss_cls, rpn_loss_box = rois, 0, 0
+            self.rois, rpn_loss_cls, rpn_loss_bbox = rois, 0, 0
 
         if self.training:
             # Sample 128 rois and assign them labels and bbox regression targets
@@ -78,12 +78,12 @@ class Network(nn.Module):
         # Extract the features of proposals
         proposal_feat = self.proposal_feat_layer(pooled_feat).squeeze()
 
-        det_score = self.det_score(proposal_feat)
+        cls_score = self.cls_score(proposal_feat)
         bbox_pred = self.bbox_pred(proposal_feat)
         feat_lowdim = F.normalize(self.feat_lowdim(proposal_feat))
 
         if self.training:
-            det_loss = F.cross_entropy(det_score, rois_label)
+            loss_cls = F.cross_entropy(cls_score, rois_label)
             loss_bbox = smooth_l1_loss(bbox_pred,
                                        rois_target,
                                        rois_inside_ws,
@@ -97,8 +97,8 @@ class Network(nn.Module):
             unlabeled_matching_scores *= 10
             id_scores = torch.cat((labeled_matching_scores, unlabeled_matching_scores), dim=1)
             id_prob = F.softmax(id_scores, dim=1)
-            id_loss = F.cross_entropy(id_prob, id_labels, ignore_index=-1)
+            loss_id = F.cross_entropy(id_prob, id_labels, ignore_index=-1)
         else:
-            det_loss, loss_bbox, id_loss = 0, 0, 0
+            loss_cls, loss_bbox, loss_id = 0, 0, 0
 
-        return det_score, bbox_pred, feat_lowdim, rpn_loss_cls, rpn_loss_box, det_loss, loss_bbox, id_loss
+        return cls_score, bbox_pred, feat_lowdim, rpn_loss_cls, rpn_loss_bbox, loss_cls, loss_bbox, loss_id

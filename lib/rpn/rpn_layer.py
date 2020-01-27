@@ -36,7 +36,7 @@ class RPN(nn.Module):
         self.rpn_anchor_target = AnchorTargetLayer()
 
         self.rpn_loss_cls = 0
-        self.rpn_loss_box = 0
+        self.rpn_loss_bbox = 0
 
     @staticmethod
     def reshape(x, d):
@@ -63,7 +63,7 @@ class RPN(nn.Module):
         rois = self.rpn_proposal(rpn_cls_prob.data, rpn_bbox_pred.data, im_info)
 
         self.rpn_loss_cls = 0
-        self.rpn_loss_box = 0
+        self.rpn_loss_bbox = 0
 
         if self.training:
             assert gt_boxes is not None
@@ -80,9 +80,9 @@ class RPN(nn.Module):
 
             # Bounding box regression loss
             rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights = rpn_data[1:]
-            self.rpn_loss_box = smooth_l1_loss(rpn_bbox_pred,
-                                               rpn_bbox_targets,
-                                               rpn_bbox_inside_weights,
-                                               rpn_bbox_outside_weights)
+            self.rpn_loss_bbox = smooth_l1_loss(rpn_bbox_pred,
+                                                rpn_bbox_targets,
+                                                rpn_bbox_inside_weights,
+                                                rpn_bbox_outside_weights)
 
-        return rois, self.rpn_loss_cls, self.rpn_loss_box
+        return rois, self.rpn_loss_cls, self.rpn_loss_bbox
