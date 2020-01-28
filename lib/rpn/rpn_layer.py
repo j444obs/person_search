@@ -60,7 +60,7 @@ class RPN(nn.Module):
         rpn_bbox_pred = self.rpn_bbox_pred(rpn_conv)
 
         # Proposal layer
-        rois = self.rpn_proposal(rpn_cls_prob.data, rpn_bbox_pred.data, im_info)
+        rois = self.rpn_proposal(rpn_cls_prob.data, rpn_bbox_pred.data, im_info, use_nms=False)
 
         self.rpn_loss_cls = 0
         self.rpn_loss_bbox = 0

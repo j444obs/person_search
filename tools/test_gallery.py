@@ -11,8 +11,8 @@ from torchvision.ops import nms
 from tqdm import tqdm
 
 from test_utils import get_image_blob
-from utils.bbox_transform import bbox_transform_inv, clip_boxes
 from utils.config import cfg
+from utils.net_utils import bbox_transform_inv, clip_boxes
 
 
 def im_detect(net, im):
@@ -38,13 +38,14 @@ def im_detect(net, im):
         'im_info': np.array([[im_blob.shape[2], im_blob.shape[3], im_scales[0]]], dtype=np.float32)
     }
 
-    pid_prob, bbox_pred, feat = net(blobs['data'], blobs['im_info'], 0)
-    pid_prob = pid_prob.numpy()
-    bbox_pred = bbox_pred.numpy()
-    feat = feat.numpy()
+    pid_prob, bbox_pred, feat, _, _, _, _, _ = net(torch.from_numpy(blobs['data']),
+                                                   torch.from_numpy(blobs['im_info']), 0)
+    pid_prob = pid_prob.detach().numpy()
+    bbox_pred = bbox_pred.detach().numpy()
+    feat = feat.detach().numpy()
 
     # unscale rois back to raw image space
-    rois = net.rois.copy()
+    rois = net.rois.numpy()
     boxes = rois[:, 1:5] / im_scales[0]
 
     # the first column of the pid_prob is the non-person box score
@@ -94,7 +95,6 @@ def vis_detections(im, class_name, dets, thresh=0.3):
 
 def detect_and_exfeat(net, imdb, thresh=0.05, vis=False):
     assert imdb.num_classes == 2, "Only support two-class detection"
-    assert cfg.TEST.HAS_RPN, "Only support RPN as proposal"
 
     num_images = imdb.num_images
 

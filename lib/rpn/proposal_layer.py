@@ -26,7 +26,7 @@ class ProposalLayer(nn.Module):
                                          scales=np.array(cfg.ANCHOR_SCALES))
         self._num_anchors = self._anchors.shape[0]
 
-    def forward(self, scores, bbox_deltas, im_info, use_nms=False):
+    def forward(self, scores, bbox_deltas, im_info, use_nms=True):
         # Algorithm:
         #
         # for each (H, W) location i

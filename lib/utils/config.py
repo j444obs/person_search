@@ -216,7 +216,7 @@ __C.USE_GPU_NMS = True
 __C.GPU_ID = 0
 
 # Default pooling mode
-__C.POOLING_MODE = 'align'
+__C.POOLING_MODE = 'pool'
 
 # Size of the pooled region after RoI pooling
 # __C.POOLING_SIZE = 7
