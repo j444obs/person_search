@@ -53,7 +53,7 @@ class PSDB(IMDB):
 
     @staticmethod
     def get_default_path():
-        return osp.join(cfg.DATA_DIR, "psdb", "dataset")
+        return osp.join(cfg.DATA_DIR, "psdb")
 
     def load_image_index(self):
         """Load the image indexes for training / testing."""
