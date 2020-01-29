@@ -79,7 +79,7 @@ class Network(nn.Module):
         proposal_feat = self.proposal_feat_layer(pooled_feat).squeeze()
 
         cls_score = self.cls_score(proposal_feat)
-        cls_prob = F.softmax(cls_score)
+        cls_prob = F.softmax(cls_score, dim=1)
         bbox_pred = self.bbox_pred(proposal_feat)
         feat_lowdim = self.feat_lowdim(proposal_feat)
         feat = F.normalize(feat_lowdim)
