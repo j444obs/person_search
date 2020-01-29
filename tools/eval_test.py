@@ -16,7 +16,7 @@ from utils.config import cfg
 
 def init_from_caffe(net):
     dict_new = net.state_dict().copy()
-    weight_path = '/home/zjli/Desktop/person_search/test/test_bn_layer/caffe_model_weights.pkl'
+    weight_path = '/home/zjli/Desktop/person_search/pkl/caffe_model_weights.pkl'
     caffe_weights = pickle.load(open(weight_path, "rb"), encoding='latin1')
     for k in net.state_dict():
         splits = k.split('.')

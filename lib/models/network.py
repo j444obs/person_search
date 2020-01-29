@@ -80,7 +80,7 @@ class Network(nn.Module):
 
         cls_score = self.cls_score(proposal_feat)
         bbox_pred = self.bbox_pred(proposal_feat)
-        feat_lowdim = F.normalize(self.feat_lowdim(proposal_feat))
+        feat_lowdim = self.feat_lowdim(proposal_feat)
 
         if self.training:
             loss_cls = F.cross_entropy(cls_score, rois_label)
