@@ -79,8 +79,10 @@ class Network(nn.Module):
         proposal_feat = self.proposal_feat_layer(pooled_feat).squeeze()
 
         cls_score = self.cls_score(proposal_feat)
+        cls_prob = F.softmax(cls_score)
         bbox_pred = self.bbox_pred(proposal_feat)
         feat_lowdim = self.feat_lowdim(proposal_feat)
+        feat = F.normalize(feat_lowdim)
 
         if self.training:
             loss_cls = F.cross_entropy(cls_score, rois_label)
@@ -90,7 +92,6 @@ class Network(nn.Module):
                                        rois_outside_ws)
 
             # OIM loss
-            feat = F.normalize(feat_lowdim)
             labeled_matching_scores, id_labels = self.labeled_matching_layer(feat, pid_label)
             labeled_matching_scores *= 10
             unlabeled_matching_scores = self.unlabeled_matching_layer(feat, pid_label)
@@ -101,4 +102,4 @@ class Network(nn.Module):
         else:
             loss_cls, loss_bbox, loss_id = 0, 0, 0
 
-        return cls_score, bbox_pred, feat_lowdim, rpn_loss_cls, rpn_loss_bbox, loss_cls, loss_bbox, loss_id
+        return cls_prob, bbox_pred, feat, rpn_loss_cls, rpn_loss_bbox, loss_cls, loss_bbox, loss_id
