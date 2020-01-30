@@ -38,14 +38,14 @@ def im_detect(net, im):
         'im_info': np.array([[im_blob.shape[2], im_blob.shape[3], im_scales[0]]], dtype=np.float32)
     }
 
-    pid_prob, bbox_pred, feat, _, _, _, _, _ = net(torch.from_numpy(blobs['data']),
-                                                   torch.from_numpy(blobs['im_info']), 0)
-    pid_prob = pid_prob.detach().numpy()
-    bbox_pred = bbox_pred.detach().numpy()
-    feat = feat.detach().numpy()
+    pid_prob, bbox_pred, feat, _, _, _, _, _ = net(torch.from_numpy(blobs['data']).cuda(),
+                                                   torch.from_numpy(blobs['im_info']).cuda(), 0)
+    pid_prob = pid_prob.detach().cpu().numpy()
+    bbox_pred = bbox_pred.detach().cpu().numpy()
+    feat = feat.detach().cpu().numpy()
 
     # unscale rois back to raw image space
-    rois = net.rois.numpy()
+    rois = net.rois.cpu().numpy()
     boxes = rois[:, 1:5] / im_scales[0]
 
     # the first column of the pid_prob is the non-person box score
@@ -114,11 +114,11 @@ def detect_and_exfeat(net, imdb, thresh=0.05, vis=False):
         j = 1  # only consider j = 1 (foreground class)
         inds = np.where(scores[:, j] > thresh)[0]
         cls_scores = scores[inds, j]
-        cls_boxes = boxes[inds, j * 4:(j + 1) * 4]
+        cls_boxes = boxes[inds, j * 4:(j + 1) * 4].astype(np.float32)
         cls_dets = np.hstack((cls_boxes, cls_scores[:, np.newaxis])).astype(np.float32, copy=False)
-        keep = nms(torch.from_numpy(cls_boxes),
-                   torch.from_numpy(cls_scores),
-                   cfg.TEST.NMS)
+        keep = nms(torch.from_numpy(cls_boxes).cuda(),
+                   torch.from_numpy(cls_scores).cuda(),
+                   cfg.TEST.NMS).cpu().numpy()
         all_boxes[i] = cls_dets[keep]
         # for blob, feat in feat_dic.iteritems():
         #     all_features[blob][i] = feat[inds][keep]

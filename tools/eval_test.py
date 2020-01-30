@@ -12,6 +12,7 @@ from models.network import Network
 from test_gallery import detect_and_exfeat
 from test_probe import exfeat
 from utils.config import cfg
+from utils import unpickle
 
 
 def init_from_caffe(net):
@@ -55,21 +56,32 @@ def init_from_caffe(net):
 
 def main():
     cfg.TEST.NMS = 0.4
+    cfg.TRAIN.BBOX_NORMALIZE_TARGETS_PRECOMPUTED = True
     imdb = get_imdb('psdb_test')
 
     # 1. Detect and extract features from all the gallery images in the imdb
     net = Network()
-    net.eval()
     init_from_caffe(net)
-    gboxes, gfeatures = detect_and_exfeat(net, imdb)
+    net.eval()
+    net.cuda()
+    # gboxes, gfeatures = detect_and_exfeat(net, imdb)
 
     # 2. Only extract features from given probe rois
-    pfeatures = exfeat(net, imdb.probes)
+    # pfeatures = exfeat(net, imdb.probes)
 
     # Save
+    # from utils import pickle
     # pickle(gboxes, 'gallery_detections.pkl')
     # pickle(gfeatures, 'gallery_features.pkl')
     # pickle(pfeatures, 'probe_features.pkl')
+
+    gboxes = pickle.load(open('./pkl/gallery_detections.pkl', "rb"), encoding='latin1')
+    gfeatures = pickle.load(open('./pkl/gallery_features.pkl', "rb"), encoding='latin1')
+    pfeatures = pickle.load(open('./pkl/probe_features.pkl', "rb"), encoding='latin1')
+
+    # gboxes = unpickle('gallery_detections.pkl')
+    # gfeatures = unpickle('gallery_features.pkl')
+    # pfeatures = unpickle('probe_features.pkl')
 
     # Evaluate
     imdb.evaluate_detections(gboxes, det_thresh=0.5)

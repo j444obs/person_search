@@ -4,8 +4,6 @@ Last editor: 520Chris
 Description: Database for person search.
 """
 
-import json
-import os
 import os.path as osp
 
 import numpy as np
@@ -102,7 +100,6 @@ class PSDB(IMDB):
         cache_file = osp.join(self.cache_path, self.name + "_gt_roidb.pkl")
         if osp.isfile(cache_file):
             gt_roidb = unpickle(cache_file)
-            print("Loaded cached roidb: %s." % cache_file)
             return gt_roidb
 
         # Load all images and build a dict from image to boxes
@@ -176,7 +173,7 @@ class PSDB(IMDB):
             )
 
         pickle(gt_roidb, cache_file)
-        print("Wrote gt roidb to %s" % cache_file)
+        print("Wrote ground truth roidb to %s." % cache_file)
 
         return gt_roidb
 
@@ -234,9 +231,9 @@ class PSDB(IMDB):
         ap = average_precision_score(y_true, y_score) * det_rate
 
         print("%s detection:" % ("Labeled only" if labeled_only else "All"))
-        print("  Recall = %.2f" % det_rate)
+        print("  Recall = {:.2%}".format(det_rate))
         if not labeled_only:
-            print("  AP = %.2f" % ap)
+            print("  AP = {:.2%}".format(ap))
 
     def evaluate_search(self, gallery_det, gallery_feat, probe_feat,
                         det_thresh=0.5, gallery_size=100, dump_json=None):
@@ -368,13 +365,7 @@ class PSDB(IMDB):
             ret["results"].append(new_entry)
 
         print("Search ranking:")
-        print("  mAP = %.2f" % np.mean(aps))
+        print("  mAP = {:.2%}".format(np.mean(aps)))
         accs = np.mean(accs, axis=0)
         for i, k in enumerate(topk):
-            print("  Top-%s = %.2f" % (k, accs[i]))
-
-        if dump_json is not None:
-            if not osp.isdir(osp.dirname(dump_json)):
-                os.makedirs(osp.dirname(dump_json))
-            with open(dump_json, "w") as f:
-                json.dump(ret, f)
+            print("  Top-{:2d} = {:.2%}".format(k, accs[i]))

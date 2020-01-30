@@ -76,7 +76,10 @@ class Network(nn.Module):
             raise NotImplementedError("Only support roi_align and roi_pool.")
 
         # Extract the features of proposals
-        proposal_feat = self.proposal_feat_layer(pooled_feat).squeeze()
+        if not is_prob:
+            proposal_feat = self.proposal_feat_layer(pooled_feat).squeeze()
+        else:
+            proposal_feat = self.proposal_feat_layer(pooled_feat).squeeze().unsqueeze(0)
 
         cls_score = self.cls_score(proposal_feat)
         cls_prob = F.softmax(cls_score, dim=1)

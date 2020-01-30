@@ -50,9 +50,9 @@ class ProposalLayer(nn.Module):
 
         # the first set of _num_anchors channels are bg probs
         # the second set are the fg probs, which we want
-        scores = scores[:, self._num_anchors:, :, :].numpy()
-        bbox_deltas = bbox_deltas.numpy()
-        im_info = im_info[0].numpy()
+        scores = scores[:, self._num_anchors:, :, :].cpu().numpy()
+        bbox_deltas = bbox_deltas.cpu().numpy()
+        im_info = im_info[0].cpu().numpy()
 
         # 1. Generate proposals from bbox deltas and shifted anchors
         height, width = scores.shape[-2:]
@@ -133,4 +133,4 @@ class ProposalLayer(nn.Module):
         # Our RPN implementation only supports a single input image, so all batch inds are 0
         blob = np.zeros((proposals.shape[0], 5), dtype=np.float32)
         blob[:, 1:] = proposals
-        return torch.from_numpy(blob)
+        return torch.from_numpy(blob).cuda()

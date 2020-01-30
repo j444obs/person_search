@@ -31,10 +31,10 @@ def im_exfeat(net, im, roi):
         'rois': get_rois_blob(roi, im_scales),
     }
 
-    _, _, feat = net(torch.from_numpy(blobs['data']),
-                     torch.from_numpy(blobs['im_info']),
-                     0, is_prob=True, rois=torch.from_numpy(blobs['rois']))
-    feat = feat.numpy()
+    _, _, feat, _, _, _, _, _ = net(torch.from_numpy(blobs['data']).cuda(),
+                                    torch.from_numpy(blobs['im_info']).cuda(),
+                                    0, is_prob=True, rois=torch.from_numpy(blobs['rois']).cuda())
+    feat = feat.detach().cpu().numpy()
 
     features = {'feat': feat.copy()}
 
@@ -54,7 +54,7 @@ def exfeat(net, probes):
 
         feat_dic = im_exfeat(net, im, roi)
 
-        for blob, feat in feat_dic.iteritems():
+        for blob, feat in feat_dic.items():
             assert feat.shape[0] == 1
             all_features[blob][i] = feat[0]
 
