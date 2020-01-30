@@ -235,8 +235,7 @@ class PSDB(IMDB):
         if not labeled_only:
             print("  AP = {:.2%}".format(ap))
 
-    def evaluate_search(self, gallery_det, gallery_feat, probe_feat,
-                        det_thresh=0.5, gallery_size=100, dump_json=None):
+    def evaluate_search(self, gallery_det, gallery_feat, probe_feat, det_thresh=0.5, gallery_size=100):
         """
         gallery_det (list of ndarray): n_det x [x1, x2, y1, y2, score] per image
         gallery_feat (list of ndarray): n_det x D features per image

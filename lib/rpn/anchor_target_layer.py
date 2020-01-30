@@ -149,14 +149,12 @@ class AnchorTargetLayer(nn.Module):
         bbox_targets = bbox_targets.reshape((1, height, width, A * 4)).transpose(0, 3, 1, 2)
 
         # bbox_inside_weights
-        bbox_inside_weights = bbox_inside_weights.reshape(
-            (1, height, width, A * 4)).transpose(0, 3, 1, 2)
+        bbox_inside_weights = bbox_inside_weights.reshape((1, height, width, A * 4)).transpose(0, 3, 1, 2)
         assert bbox_inside_weights.shape[2] == height
         assert bbox_inside_weights.shape[3] == width
 
         # bbox_outside_weights
-        bbox_outside_weights = bbox_outside_weights.reshape(
-            (1, height, width, A * 4)).transpose(0, 3, 1, 2)
+        bbox_outside_weights = bbox_outside_weights.reshape((1, height, width, A * 4)).transpose(0, 3, 1, 2)
         assert bbox_outside_weights.shape[2] == height
         assert bbox_outside_weights.shape[3] == width
 

@@ -18,10 +18,10 @@ class ProposalTargetLayer(nn.Module):
     classification labels and bounding-box regression targets.
     """
 
-    def __init__(self, num_classes, bg_aux_label=5532):
+    def __init__(self, num_classes, bg_pid_label=5532):
         super(ProposalTargetLayer, self).__init__()
         self.num_classes = num_classes
-        self.bg_aux_label = bg_aux_label
+        self.bg_pid_label = bg_pid_label
 
     def forward(self, all_rois, gt_boxes, use_rand=True):
         # Proposal ROIs (0, x1, y1, x2, y2) coming from RPN
@@ -44,7 +44,7 @@ class ProposalTargetLayer(nn.Module):
 
         # Sample rois with classification labels and bounding box regression targets
         sample_data = sample_rois(all_rois, gt_boxes, fg_rois_per_image, rois_per_image,
-                                  self.num_classes, self.bg_aux_label, use_rand)
+                                  self.num_classes, self.bg_pid_label, use_rand)
 
         labels, rois, bbox_targets, bbox_inside_weights, aux_label = sample_data
         bbox_outside_weights = np.array(bbox_inside_weights > 0).astype(np.float32)
@@ -95,8 +95,7 @@ def compute_targets(ex_rois, gt_rois, labels):
     return np.hstack((labels[:, np.newaxis], targets)).astype(np.float32, copy=False)
 
 
-def sample_rois(all_rois, gt_boxes, fg_rois_per_image, rois_per_image, num_classes, bg_aux_label,
-                use_rand):
+def sample_rois(all_rois, gt_boxes, fg_rois_per_image, rois_per_image, num_classes, bg_pid_label, use_rand):
     """Generate a random sample of RoIs comprising foreground and background examples."""
     # overlaps: (rois x gt_boxes)
     overlaps = bbox_overlaps(np.ascontiguousarray(all_rois[:, 1:5], dtype=np.float),
@@ -142,14 +141,14 @@ def sample_rois(all_rois, gt_boxes, fg_rois_per_image, rois_per_image, num_class
     rois = all_rois[keep_inds]
 
     # Auxiliary label if available
-    aux_label = None
+    pid_label = None
     if gt_boxes.shape[1] > 5:
-        aux_label = gt_boxes[gt_assignment, 5]
-        aux_label = aux_label[keep_inds]
-        aux_label[fg_rois_per_this_image:] = bg_aux_label
+        pid_label = gt_boxes[gt_assignment, 5]
+        pid_label = pid_label[keep_inds]
+        pid_label[fg_rois_per_this_image:] = bg_pid_label
 
     bbox_target_data = compute_targets(rois[:, 1:5], gt_boxes[gt_assignment[keep_inds], :4], labels)
 
     bbox_targets, bbox_inside_weights = get_bbox_regression_labels(bbox_target_data, num_classes)
 
-    return labels, rois, bbox_targets, bbox_inside_weights, aux_label
+    return labels, rois, bbox_targets, bbox_inside_weights, pid_label
