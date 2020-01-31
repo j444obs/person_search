@@ -36,7 +36,7 @@ class Network(nn.Module):
         self.rois = None  # proposals produced by RPN
 
         # Pooling layer
-        pool_size = 14
+        pool_size = cfg.POOLING_SIZE
         self.roi_align = RoIAlign((pool_size, pool_size), 1.0 / 16.0, 0)
         self.roi_pool = RoIPool((pool_size, pool_size), 1.0 / 16.0)
 
