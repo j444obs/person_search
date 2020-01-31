@@ -51,7 +51,7 @@ def init_from_caffe(net):
             continue
 
     net.load_state_dict(dict_new)
-    print("load caffe model successfully!")
+    print("Load caffe model successfully!")
 
 
 def main():
@@ -64,20 +64,20 @@ def main():
     init_from_caffe(net)
     net.eval()
     net.cuda()
-    # gboxes, gfeatures = detect_and_exfeat(net, imdb)
+    gboxes, gfeatures = detect_and_exfeat(net, imdb)
 
     # 2. Only extract features from given probe rois
-    # pfeatures = exfeat(net, imdb.probes)
+    pfeatures = exfeat(net, imdb.probes)
 
     # Save
-    # from utils import pickle
-    # pickle(gboxes, 'gallery_detections.pkl')
-    # pickle(gfeatures, 'gallery_features.pkl')
-    # pickle(pfeatures, 'probe_features.pkl')
+    from utils import pickle
+    pickle(gboxes, 'gallery_detections.pkl')
+    pickle(gfeatures, 'gallery_features.pkl')
+    pickle(pfeatures, 'probe_features.pkl')
 
-    gboxes = pickle.load(open('./pkl/gallery_detections.pkl', "rb"), encoding='latin1')
-    gfeatures = pickle.load(open('./pkl/gallery_features.pkl', "rb"), encoding='latin1')
-    pfeatures = pickle.load(open('./pkl/probe_features.pkl', "rb"), encoding='latin1')
+    # gboxes = pickle.load(open('./pkl/gallery_detections.pkl', "rb"), encoding='latin1')
+    # gfeatures = pickle.load(open('./pkl/gallery_features.pkl', "rb"), encoding='latin1')
+    # pfeatures = pickle.load(open('./pkl/probe_features.pkl', "rb"), encoding='latin1')
 
     # gboxes = unpickle('gallery_detections.pkl')
     # gfeatures = unpickle('gallery_features.pkl')
@@ -87,7 +87,7 @@ def main():
     imdb.evaluate_detections(gboxes, det_thresh=0.5)
     imdb.evaluate_detections(gboxes, det_thresh=0.5, labeled_only=True)
     imdb.evaluate_search(gboxes, gfeatures['feat'], pfeatures['feat'], det_thresh=0.5,
-                         gallery_size=100, dump_json='results.json')
+                         gallery_size=100)
 
 
 if __name__ == "__main__":

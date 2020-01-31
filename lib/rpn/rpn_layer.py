@@ -21,7 +21,7 @@ class RPN(nn.Module):
         self.num_anchors = len(cfg.ANCHOR_SCALES) * len(cfg.ANCHOR_RATIOS)
 
         # Define the conv layer processing input feature map
-        self.rpn_conv = nn.Conv2d(input_depth, 512, 3, 1, 1, bias=True)
+        self.rpn_conv = nn.Conv2d(input_depth, 512, 3, 1, 1)
 
         # Define bg/fg classifcation score layer, 9(anchors) * 2(bg/fg)
         self.rpn_cls_score = nn.Conv2d(512, self.num_anchors * 2, 1, 1, 0)
@@ -60,7 +60,7 @@ class RPN(nn.Module):
         rpn_bbox_pred = self.rpn_bbox_pred(rpn_conv)
 
         # Proposal layer
-        rois = self.rpn_proposal(rpn_cls_prob.data, rpn_bbox_pred.data, im_info, use_nms=False)
+        rois = self.rpn_proposal(rpn_cls_prob.data, rpn_bbox_pred.data, im_info, use_nms=True)
 
         self.rpn_loss_cls = 0
         self.rpn_loss_bbox = 0
