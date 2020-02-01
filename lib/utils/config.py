@@ -159,9 +159,6 @@ cfg.ROOT_DIR = osp.abspath(osp.join(osp.dirname(__file__), '..', '..'))
 # Data directory
 cfg.DATA_DIR = osp.abspath(osp.join(cfg.ROOT_DIR, 'data'))
 
-# Place outputs under an experiments directory
-cfg.EXP_DIR = 'default'
-
 # Default GPU device id
 cfg.GPU_ID = 0
 
@@ -182,13 +179,8 @@ cfg.FEAT_STRIDE = [16, ]
 
 
 def get_output_dir(imdb_name, net_name=None):
-    """Return the directory where experimental artifacts are placed.
-    If the directory does not exist, it is created.
-
-    A canonical path is built using the name from an imdb and a network
-    (if not None).
-    """
-    outdir = osp.abspath(osp.join(cfg.ROOT_DIR, 'output', imdb_name, cfg.EXP_DIR))
+    """Return the directory where the experiment results are saved."""
+    outdir = osp.abspath(osp.join(cfg.ROOT_DIR, 'output', imdb_name))
     if net_name is not None:
         outdir = osp.join(outdir, net_name)
     if not os.path.exists(outdir):
@@ -197,17 +189,17 @@ def get_output_dir(imdb_name, net_name=None):
 
 
 def merge_a_into_b(a, b):
-    """Merge config dictionary a into config dictionary b, clobbering the
-    options in b whenever they are also specified in a.
+    """
+    Merge config dictionary a into config dictionary b, clobbering
+    the options in b whenever they are also specified in a.
     """
     if not isinstance(a, edict):
         return
 
     for k, v in a.items():
         # a must specify keys that are in b
-        # if not b.has_key(k):
         if k not in b:
-            raise KeyError('{} is not a valid config key'.format(k))
+            raise KeyError('%s is not a valid config key' % k)
 
         # the types must match, too
         old_type = type(b[k])
@@ -215,16 +207,11 @@ def merge_a_into_b(a, b):
             if isinstance(b[k], np.ndarray):
                 v = np.array(v, dtype=b[k].dtype)
             else:
-                raise ValueError(('Type mismatch ({} vs. {}) for config key: {}').format(
-                    type(b[k]), type(v), k))
+                raise ValueError('Type mismatch (%s vs. %s) for config key: %s' % (type(b[k]), type(v), k))
 
         # recursively merge dicts
         if isinstance(v, edict):
-            try:
-                merge_a_into_b(a[k], b[k])
-            except:
-                print('Error under config key: {}'.format(k))
-                raise
+            merge_a_into_b(a[k], b[k])
         else:
             b[k] = v
 

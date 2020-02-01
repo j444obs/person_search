@@ -6,7 +6,6 @@ Description: Train a person search network
 import argparse
 import os
 import random
-import sys
 
 import numpy as np
 import torch
@@ -14,13 +13,11 @@ import torch
 from datasets.factory import get_imdb
 from models.network import Network
 from roi_data_layer.dataloader import DataLoader
-from utils.config import cfg, cfg_from_file, cfg_from_list, get_output_dir
+from utils.config import cfg, cfg_from_file, get_output_dir
 
 
 def parse_args():
-    """
-    Parse input arguments
-    """
+    """Parse input arguments."""
     parser = argparse.ArgumentParser(description='Train a person search network')
     parser.add_argument('--gpu', dest='gpu',
                         help='GPU device id to use [0,1,2,3,4,5,6,7,8]',
@@ -43,16 +40,7 @@ def parse_args():
     parser.add_argument('--rand', dest='randomize',
                         help='randomize (do not use a fixed seed)',
                         action='store_true')
-    parser.add_argument('--set', dest='set_cfgs',
-                        help='set config keys', default=None,
-                        nargs=argparse.REMAINDER)
-
-    if len(sys.argv) == 1:
-        parser.print_help()
-        sys.exit(1)
-
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 
 def prepare_imdb(name):
@@ -74,11 +62,9 @@ if __name__ == '__main__':
 
     if args.cfg_file is not None:
         cfg_from_file(args.cfg_file)
-    if args.set_cfgs is not None:
-        cfg_from_list(args.set_cfgs)
 
     if not args.randomize:
-        # fix the random seeds (numpy and pytorch) for reproducibility
+        # Fix the random seeds (numpy and pytorch) for reproducibility
         torch.manual_seed(cfg.RNG_SEED)
         torch.cuda.manual_seed_all(cfg.RNG_SEED)
         torch.backends.cudnn.deterministic = True
@@ -102,16 +88,3 @@ if __name__ == '__main__':
         res = net(torch.from_numpy(blob['data']),
                   torch.from_numpy(blob['im_info']),
                   torch.from_numpy(blob['gt_boxes']))
-
-    # from utils import pickle
-    # pickle(data, 'data.pkl')
-
-    # from utils import unpickle
-    # data = unpickle('data.pkl')
-    # net = Network()
-    # res = net(torch.from_numpy(data['data']),
-    #           torch.from_numpy(data['im_info']),
-    #           torch.from_numpy(data['gt_boxes']))
-
-    # import pickle
-    # data = pickle.load(open('caffe_model_weights.pkl', "rb"), encoding='latin1')
