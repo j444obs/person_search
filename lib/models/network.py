@@ -47,6 +47,8 @@ class Network(nn.Module):
         self.labeled_matching_layer = LabeledMatchingLayer()
         self.unlabeled_matching_layer = UnlabeledMatchingLayer()
 
+        self.frozen_blocks()
+
     def forward(self, im_data, im_info, gt_boxes, is_prob=False, rois=None):
         assert im_data.size(0) == 1, 'Single batch only.'
 
@@ -106,3 +108,24 @@ class Network(nn.Module):
             loss_cls, loss_bbox, loss_id = 0, 0, 0
 
         return cls_prob, bbox_pred, feat, rpn_loss_cls, rpn_loss_bbox, loss_cls, loss_bbox, loss_id
+
+    def frozen_blocks(self):
+        for v in self.base_feat_layer.SpatialConvolution_0.parameters():
+            v.requires_grad = False
+
+        # frozen the BN layers in base_feat_layer
+        for k, v in self.base_feat_layer.named_parameters():
+            if 'BN' in k:
+                v.requires_grad = False
+
+    def get_training_params(self):
+        params = []
+        for k, v in self.named_parameters():
+            if v.requires_grad:
+                if 'BN' in k:
+                    params += [{'params': [v], 'lr_mult': 1, 'decay_mult': 0}]
+                elif 'bias' in k:
+                    params += [{'params': [v], 'lr_mult': 2, 'decay_mult': 0}]
+                else:
+                    params += [{'params': [v], 'lr_mult': 1, 'decay_mult': 1}]
+        return params

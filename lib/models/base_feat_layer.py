@@ -15,7 +15,7 @@ class BaseFeatLayer(nn.Module):
         self.SpatialConvolution_0 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3)
         self.BN_1 = nn.BatchNorm2d(64)
         self.ReLU_2 = nn.ReLU(inplace=True)
-        self.Pooling_3 = nn.MaxPool2d(kernel_size=3, stride=2, padding=0, ceil_mode=True)  # change
+        self.Pooling_3 = nn.MaxPool2d(kernel_size=3, stride=2, padding=0, ceil_mode=True)
 
         # layer1
         self.SpatialConvolution_4 = nn.Conv2d(64, 64, kernel_size=1, stride=1, padding=0)

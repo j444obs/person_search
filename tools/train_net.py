@@ -1,6 +1,6 @@
 """
 Author: 520Chris
-Description: Train a person search network
+Description: Train a person search network.
 """
 
 import argparse
@@ -9,6 +9,7 @@ import random
 
 import numpy as np
 import torch
+import torch.optim as optim
 
 from datasets.factory import get_imdb
 from models.network import Network
@@ -57,8 +58,8 @@ def prepare_imdb(name):
 if __name__ == '__main__':
     args = parse_args()
 
-    print('Called with args:')
-    print(args)
+    # print('Called with args:')
+    # print(args)
 
     if args.cfg_file is not None:
         cfg_from_file(args.cfg_file)
@@ -75,16 +76,41 @@ if __name__ == '__main__':
 
     imdb = prepare_imdb(args.imdb_name)
     roidb = imdb.roidb
-    print('%s roidb entries' % len(roidb))
+    # print('%s roidb entries' % len(roidb))
 
     output_dir = get_output_dir(imdb.name)
     print('Output will be saved to `%s`' % output_dir)
 
     dataloader = DataLoader(roidb)
     net = Network()
-    net.train()
-    for i in range(1000):
+    optimizer = optim.SGD(net.get_training_params(),
+                          lr=cfg.TRAIN.LEARNING_RATE,
+                          momentum=cfg.TRAIN.MOMENTUM,
+                          weight_decay=cfg.TRAIN.WEIGHT_DECAY)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=40000, gamma=0.1)
+
+    iter_size = 2  # accumulated gradient update
+    display = 20
+    loss_total = 0
+    for i in range(args.max_iters):
         blob = dataloader.get_next_minibatch()
-        res = net(torch.from_numpy(blob['data']),
-                  torch.from_numpy(blob['im_info']),
-                  torch.from_numpy(blob['gt_boxes']))
+        output = net(torch.from_numpy(blob['data']).cuda(),
+                     torch.from_numpy(blob['im_info']).cuda(),
+                     torch.from_numpy(blob['gt_boxes']).cuda())
+        cls_prob, bbox_pred, feat, rpn_loss_cls, rpn_loss_bbox, loss_cls, loss_bbox, loss_id = output
+        loss = (rpn_loss_cls + rpn_loss_bbox + loss_cls + loss_bbox + loss_id) / iter_size
+        loss_total += loss
+        loss.backward()
+
+        if (i + 1) % iter_size == 0:
+            optimizer.step()
+            optimizer.zero_grad()
+
+        if (i + 1) % display == 0:
+            print("Iteration [%s] / [%s]: loss: %.4f" % (i + 1, args.max_iters, loss_total / display))
+            print("rpn_loss_cls: %.4f, rpn_loss_bbox: %.4f, loss_cls: %.4f, loss_bbox: %.4f, loss_id: %.4f" %
+                  (rpn_loss_cls, rpn_loss_bbox, loss_cls, loss_bbox, loss_id))
+            loss_total = 0
+
+        # adjust learning rate
+        scheduler.step()

@@ -27,6 +27,15 @@ cfg = edict()
 
 cfg.TRAIN = edict()
 
+cfg.TRAIN.LEARNING_RATE = 0.001
+
+cfg.TRAIN.WEIGHT_DECAY = 0.0005
+
+cfg.TRAIN.MOMENTUM = 0.9
+
+# Iterations between snapshots
+cfg.TRAIN.SNAPSHOT_ITERS = 10000
+
 # Scales to use during training (can list multiple scales)
 # Each scale is the pixel size of an image's shortest side
 cfg.TRAIN.SCALES = (600,)
@@ -52,9 +61,6 @@ cfg.TRAIN.BG_THRESH_LO = 0.1
 
 # Use horizontally-flipped images during training
 cfg.TRAIN.USE_FLIPPED = True
-
-# Iterations between snapshots
-cfg.TRAIN.SNAPSHOT_ITERS = 10000
 
 # Normalize the targets (subtract empirical mean, divide by empirical stddev)
 cfg.TRAIN.BBOX_NORMALIZE_TARGETS = True

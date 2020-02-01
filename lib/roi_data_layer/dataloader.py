@@ -39,7 +39,8 @@ class DataLoader:
 
     def get_next_minibatch_inds(self):
         """Return the roidb indices for the next minibatch."""
-        assert self.cur + cfg.TRAIN.IMS_PER_BATCH < len(self.roidb), "No more images for training."
+        if self.cur + cfg.TRAIN.IMS_PER_BATCH >= len(self.roidb):
+            self.shuffle_roidb_inds()
         batch_inds = self.perm[self.cur:self.cur + cfg.TRAIN.IMS_PER_BATCH]
         self.cur += cfg.TRAIN.IMS_PER_BATCH
         return batch_inds
