@@ -1,5 +1,5 @@
 # Only for this project
-pkl
+*.pkl
 data
 test
 output

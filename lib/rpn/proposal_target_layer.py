@@ -26,10 +26,10 @@ class ProposalTargetLayer(nn.Module):
     def forward(self, all_rois, gt_boxes, use_rand=True):
         # Proposal ROIs (0, x1, y1, x2, y2) coming from RPN
         # (i.e., rpn.proposal_layer.ProposalLayer), or any other source
-        all_rois = all_rois.numpy()
+        all_rois = all_rois.cpu().numpy()
 
         # GT boxes (x1, y1, x2, y2, class, pid)
-        gt_boxes = gt_boxes.numpy()
+        gt_boxes = gt_boxes.cpu().numpy()
 
         # Include ground-truth boxes in the set of candidate rois
         zeros = np.zeros((gt_boxes.shape[0], 1), dtype=gt_boxes.dtype)
@@ -49,12 +49,12 @@ class ProposalTargetLayer(nn.Module):
         labels, rois, bbox_targets, bbox_inside_weights, aux_label = sample_data
         bbox_outside_weights = np.array(bbox_inside_weights > 0).astype(np.float32)
 
-        return (torch.from_numpy(rois),
-                torch.from_numpy(labels).long(),
-                torch.from_numpy(bbox_targets),
-                torch.from_numpy(bbox_inside_weights),
-                torch.from_numpy(bbox_outside_weights),
-                torch.from_numpy(aux_label).long())
+        return (torch.from_numpy(rois).cuda(),
+                torch.from_numpy(labels).long().cuda(),
+                torch.from_numpy(bbox_targets).cuda(),
+                torch.from_numpy(bbox_inside_weights).cuda(),
+                torch.from_numpy(bbox_outside_weights).cuda(),
+                torch.from_numpy(aux_label).long().cuda())
 
 
 def get_bbox_regression_labels(bbox_target_data, num_classes):

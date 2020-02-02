@@ -39,8 +39,8 @@ class AnchorTargetLayer(nn.Module):
         assert rpn_cls_score.size(0) == 1, 'Single batch only.'
 
         height, width = rpn_cls_score.shape[-2:]
-        gt_boxes = gt_boxes.numpy()  # gt_boxes: (x1, y1, x2, y2, class, pid)
-        im_info = im_info[0].numpy()
+        gt_boxes = gt_boxes.cpu().numpy()  # gt_boxes: (x1, y1, x2, y2, class, pid)
+        im_info = im_info[0].cpu().numpy()
 
         # 1. Generate proposals from bbox deltas and shifted anchors
         shift_x = np.arange(0, width) * self.feat_stride
@@ -158,10 +158,10 @@ class AnchorTargetLayer(nn.Module):
         assert bbox_outside_weights.shape[2] == height
         assert bbox_outside_weights.shape[3] == width
 
-        return (torch.from_numpy(labels),
-                torch.from_numpy(bbox_targets),
-                torch.from_numpy(bbox_inside_weights),
-                torch.from_numpy(bbox_outside_weights))
+        return (torch.from_numpy(labels).cuda(),
+                torch.from_numpy(bbox_targets).cuda(),
+                torch.from_numpy(bbox_inside_weights).cuda(),
+                torch.from_numpy(bbox_outside_weights).cuda())
 
 
 def unmap(data, count, inds, fill=0):

@@ -7,7 +7,7 @@ class CircularQueue:
     """A simple circular queue with only tail pointer."""
 
     def __init__(self, queue_size=5000, feat_len=256):
-        self.data = torch.zeros(queue_size, feat_len)
+        self.data = torch.zeros(queue_size, feat_len).cuda()
         self.tail = 0
         self.queue_size = queue_size
         self.feat_len = feat_len
@@ -37,7 +37,7 @@ class UnlabeledMatching(Function):
 
         grad_feats = None
         if ctx.needs_input_grad[0]:
-            grad_feats = grad_output.mm(queue)
+            grad_feats = grad_output.mm(queue.data)
 
         # Update circular queue, but not by standard backpropagation with gradients
         for indx, label in enumerate(pid_labels):

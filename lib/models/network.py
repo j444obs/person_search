@@ -64,7 +64,7 @@ class Network(nn.Module):
 
         if self.training:
             # Sample 128 rois and assign them labels and bbox regression targets
-            roi_data = self.proposal_target_layer(self.rois, gt_boxes)
+            roi_data = self.proposal_target_layer(self.rois, gt_boxes, use_rand=False)
             self.rois, rois_label, rois_target, rois_inside_ws, rois_outside_ws, pid_label = roi_data
         else:
             rois_label, rois_target, rois_inside_ws, rois_outside_ws, pid_label = [None] * 5
@@ -102,21 +102,30 @@ class Network(nn.Module):
             unlabeled_matching_scores = self.unlabeled_matching_layer(feat, pid_label)
             unlabeled_matching_scores *= 10
             id_scores = torch.cat((labeled_matching_scores, unlabeled_matching_scores), dim=1)
-            id_prob = F.softmax(id_scores, dim=1)
-            loss_id = F.cross_entropy(id_prob, id_labels, ignore_index=-1)
+            loss_id = F.cross_entropy(id_scores, id_labels, ignore_index=-1)
         else:
             loss_cls, loss_bbox, loss_id = 0, 0, 0
 
         return cls_prob, bbox_pred, feat, rpn_loss_cls, rpn_loss_bbox, loss_cls, loss_bbox, loss_id
 
     def frozen_blocks(self):
-        for v in self.base_feat_layer.SpatialConvolution_0.parameters():
-            v.requires_grad = False
+        for p in self.base_feat_layer.SpatialConvolution_0.parameters():
+            p.requires_grad = False
+
+        def set_bn_fix(m):
+            classname = m.__class__.__name__
+            if classname.find('BatchNorm') != -1:
+                for p in m.parameters():
+                    p.requires_grad = False
+
+        def set_bn_eval(m):
+            classname = m.__class__.__name__
+            if classname.find('BatchNorm') != -1:
+                m.eval()
 
         # frozen the BN layers in base_feat_layer
-        for k, v in self.base_feat_layer.named_parameters():
-            if 'BN' in k:
-                v.requires_grad = False
+        self.base_feat_layer.apply(set_bn_fix)
+        self.base_feat_layer.apply(set_bn_eval)
 
     def get_training_params(self):
         params = []

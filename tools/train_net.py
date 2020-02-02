@@ -5,6 +5,7 @@ Description: Train a person search network.
 
 import argparse
 import os
+import pickle
 import random
 
 import numpy as np
@@ -44,6 +45,47 @@ def parse_args():
     return parser.parse_args()
 
 
+def init_from_caffe(net):
+    dict_new = net.state_dict().copy()
+    weight_path = '/home/zjli/Desktop/person_search/pkl1/caffe_model_weights.pkl'
+    caffe_weights = pickle.load(open(weight_path, "rb"), encoding='latin1')
+    for k in net.state_dict():
+        splits = k.split('.')
+
+        # Layer name mapping
+        if splits[-2] == 'rpn_conv':
+            name = 'rpn_conv/3x3'
+        elif splits[-2] == 'cls_score':
+            name = 'det_score'
+        elif splits[-2] in ['rpn_cls_score', 'rpn_bbox_pred', 'bbox_pred', 'feat_lowdim']:
+            name = splits[-2]
+        else:
+            name = 'caffe.' + splits[-2]
+
+        if name not in caffe_weights:
+            print("Layer: %s not found" % k)
+            continue
+
+        if splits[-1] == 'weight':  # For BN, weight is scale
+            dict_new[k] = torch.from_numpy(caffe_weights[name][0]).reshape(dict_new[k].shape)
+        elif splits[-1] == 'bias':  # For BN, bias is shift
+            dict_new[k] = torch.from_numpy(caffe_weights[name][1]).reshape(dict_new[k].shape)
+        elif splits[-1] == 'running_mean':
+            dict_new[k] = torch.from_numpy(caffe_weights[name][2]).reshape(dict_new[k].shape)
+        elif splits[-1] == 'running_var':
+            dict_new[k] = torch.from_numpy(caffe_weights[name][3]).reshape(dict_new[k].shape)
+        elif splits[-1] == 'num_batches_tracked':  # num_batches_tracked is unuseful in test phase
+            continue
+        else:
+            print("Layer: %s not found" % k)
+            continue
+
+    net.load_state_dict(dict_new)
+    net.labeled_matching_layer.lookup_table = torch.from_numpy(caffe_weights['labeled_matching'][0]).cuda()
+    net.unlabeled_matching_layer.queue.data = torch.from_numpy(caffe_weights['unlabeled_matching'][0]).cuda()
+    print("Load caffe model successfully!")
+
+
 def prepare_imdb(name):
     print("Loading image database: %s" % name)
     imdb = get_imdb(name)
@@ -57,6 +99,9 @@ def prepare_imdb(name):
 
 if __name__ == '__main__':
     args = parse_args()
+    # net = Network()
+    # for k, v in net.named_parameters():
+    #     print(k)
 
     # print('Called with args:')
     # print(args)
@@ -83,11 +128,20 @@ if __name__ == '__main__':
 
     dataloader = DataLoader(roidb)
     net = Network()
+    init_from_caffe(net)
+    net.cuda()
     optimizer = optim.SGD(net.get_training_params(),
                           lr=cfg.TRAIN.LEARNING_RATE,
                           momentum=cfg.TRAIN.MOMENTUM,
                           weight_decay=cfg.TRAIN.WEIGHT_DECAY)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=40000, gamma=0.1)
+    # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1)
+
+    # for i in range(10):
+    #     print(optimizer.state_dict()['param_groups'][0]['lr'])
+    #     if False:
+    #         optimizer.step()
+    #     scheduler.step()
 
     iter_size = 2  # accumulated gradient update
     display = 20
@@ -114,3 +168,6 @@ if __name__ == '__main__':
 
         # adjust learning rate
         scheduler.step()
+
+    torch.save(net, 'net.pth')
+    # model = torch.load('model.pkl')

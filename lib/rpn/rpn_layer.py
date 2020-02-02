@@ -3,7 +3,6 @@ Author: https://github.com/jwyang/faster-rcnn.pytorch.git
 Description: Region proposal network.
 """
 
-import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -51,7 +50,6 @@ class RPN(nn.Module):
 
         # Get rpn classification score
         rpn_cls_score = self.rpn_cls_score(rpn_conv)
-
         rpn_cls_score_reshape = self.reshape(rpn_cls_score, 2)
         rpn_cls_prob_reshape = F.softmax(rpn_cls_score_reshape, 1)
         rpn_cls_prob = self.reshape(rpn_cls_prob_reshape, self.num_anchors * 2)
@@ -60,7 +58,7 @@ class RPN(nn.Module):
         rpn_bbox_pred = self.rpn_bbox_pred(rpn_conv)
 
         # Proposal layer
-        rois = self.rpn_proposal(rpn_cls_prob.data, rpn_bbox_pred.data, im_info, use_nms=True)
+        rois = self.rpn_proposal(rpn_cls_prob.data, rpn_bbox_pred.data, im_info, use_nms=False)
 
         self.rpn_loss_cls = 0
         self.rpn_loss_bbox = 0
@@ -68,21 +66,20 @@ class RPN(nn.Module):
         if self.training:
             assert gt_boxes is not None
 
-            rpn_data = self.rpn_anchor_target(rpn_cls_score.data, gt_boxes, im_info)
+            rpn_data = self.rpn_anchor_target(rpn_cls_score, gt_boxes, im_info, use_rand=False)
 
             # Classification loss
-            rpn_cls_score = rpn_cls_score_reshape.permute(0, 2, 3, 1).contiguous().view(1, -1, 2)
-            rpn_label = rpn_data[0].view(1, -1)
-            rpn_keep = rpn_label.view(-1).ne(-1).nonzero().view(-1)
-            rpn_cls_score = torch.index_select(rpn_cls_score.view(-1, 2), 0, rpn_keep)
-            rpn_label = torch.index_select(rpn_label.view(-1), 0, rpn_keep.data).long()
-            self.rpn_loss_cls = F.cross_entropy(rpn_cls_score, rpn_label)
+            rpn_cls_score = rpn_cls_score_reshape.permute(0, 2, 3, 1).contiguous().view(-1, 2)
+            rpn_label = rpn_data[0].view(-1).long()
+            self.rpn_loss_cls = F.cross_entropy(rpn_cls_score, rpn_label, ignore_index=-1)
 
             # Bounding box regression loss
             rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights = rpn_data[1:]
             self.rpn_loss_bbox = smooth_l1_loss(rpn_bbox_pred,
                                                 rpn_bbox_targets,
                                                 rpn_bbox_inside_weights,
-                                                rpn_bbox_outside_weights)
+                                                rpn_bbox_outside_weights,
+                                                sigma=3,
+                                                dim=[1, 2, 3])
 
         return rois, self.rpn_loss_cls, self.rpn_loss_bbox
