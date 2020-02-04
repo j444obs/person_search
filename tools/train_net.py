@@ -143,10 +143,10 @@ if __name__ == '__main__':
     #         optimizer.step()
     #     scheduler.step()
 
-    max_iters = 10
+    max_iters = 50000
     iter_size = 2  # accumulated gradient update
-    display = 2
-    average_loss = 3
+    display = 20
+    average_loss = 100
     losses = []
     smoothed_loss = 0
     for i in range(max_iters):
