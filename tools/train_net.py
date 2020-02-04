@@ -143,31 +143,41 @@ if __name__ == '__main__':
     #         optimizer.step()
     #     scheduler.step()
 
+    max_iters = 10
     iter_size = 2  # accumulated gradient update
-    display = 20
-    loss_total = 0
-    for i in range(args.max_iters):
-        blob = dataloader.get_next_minibatch()
-        output = net(torch.from_numpy(blob['data']).cuda(),
-                     torch.from_numpy(blob['im_info']).cuda(),
-                     torch.from_numpy(blob['gt_boxes']).cuda())
-        cls_prob, bbox_pred, feat, rpn_loss_cls, rpn_loss_bbox, loss_cls, loss_bbox, loss_id = output
-        loss = (rpn_loss_cls + rpn_loss_bbox + loss_cls + loss_bbox + loss_id) / iter_size
-        loss_total += loss
-        loss.backward()
+    display = 2
+    average_loss = 3
+    losses = []
+    smoothed_loss = 0
+    for i in range(max_iters):
+        # forward one iteration
+        loss = 0
+        for _ in range(iter_size):
+            blob = dataloader.get_next_minibatch()
+            output = net(torch.from_numpy(blob['data']).cuda(),
+                         torch.from_numpy(blob['im_info']).cuda(),
+                         torch.from_numpy(blob['gt_boxes']).cuda())
+            _, _, _, rpn_loss_cls, rpn_loss_bbox, loss_cls, loss_bbox, loss_id = output
+            loss_iter = (rpn_loss_cls + rpn_loss_bbox + loss_cls + loss_bbox + loss_id) / iter_size
+            loss_iter.backward()
+            loss += loss_iter
 
-        if (i + 1) % iter_size == 0:
-            optimizer.step()
-            optimizer.zero_grad()
+        optimizer.step()
+        optimizer.zero_grad()
+        scheduler.step()  # adjust learning rate
 
-        if (i + 1) % display == 0:
-            print("Iteration [%s] / [%s]: loss: %.4f" % (i + 1, args.max_iters, loss_total / display))
+        if len(losses) < average_loss:
+            losses.append(loss)
+            size = len(losses)
+            smoothed_loss = (smoothed_loss * (size - 1) + loss) / size
+        else:
+            idx = i % average_loss
+            smoothed_loss += (loss - losses[idx]) / average_loss
+            losses[idx] = loss
+
+        if i % display == 0:
+            print("Iteration [%s / %s]: loss: %.4f" % (i, max_iters, smoothed_loss))
             print("rpn_loss_cls: %.4f, rpn_loss_bbox: %.4f, loss_cls: %.4f, loss_bbox: %.4f, loss_id: %.4f" %
                   (rpn_loss_cls, rpn_loss_bbox, loss_cls, loss_bbox, loss_id))
-            loss_total = 0
-
-        # adjust learning rate
-        scheduler.step()
 
     torch.save(net, 'net.pth')
-    # model = torch.load('model.pkl')

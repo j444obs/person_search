@@ -60,8 +60,9 @@ def main():
     imdb = get_imdb('psdb_test')
 
     # 1. Detect and extract features from all the gallery images in the imdb
-    net = Network()
-    init_from_caffe(net)
+    net = torch.load('net.pth')
+    # net = Network()
+    # init_from_caffe(net)
     net.eval()
     net.cuda()
     gboxes, gfeatures = detect_and_exfeat(net, imdb)
@@ -70,10 +71,10 @@ def main():
     pfeatures = exfeat(net, imdb.probes)
 
     # Save
-    from utils import pickle
-    pickle(gboxes, 'gallery_detections.pkl')
-    pickle(gfeatures, 'gallery_features.pkl')
-    pickle(pfeatures, 'probe_features.pkl')
+    # from utils import pickle
+    # pickle(gboxes, 'gallery_detections.pkl')
+    # pickle(gfeatures, 'gallery_features.pkl')
+    # pickle(pfeatures, 'probe_features.pkl')
 
     # gboxes = pickle.load(open('./pkl/gallery_detections.pkl', "rb"), encoding='latin1')
     # gfeatures = pickle.load(open('./pkl/gallery_features.pkl', "rb"), encoding='latin1')
