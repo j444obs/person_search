@@ -58,7 +58,7 @@ class RPN(nn.Module):
         rpn_bbox_pred = self.rpn_bbox_pred(rpn_conv)
 
         # Proposal layer
-        rois = self.rpn_proposal(rpn_cls_prob.data, rpn_bbox_pred.data, im_info, use_nms=False)
+        rois = self.rpn_proposal(rpn_cls_prob.data, rpn_bbox_pred.data, im_info)
 
         self.rpn_loss_cls = 0
         self.rpn_loss_bbox = 0
@@ -66,7 +66,7 @@ class RPN(nn.Module):
         if self.training:
             assert gt_boxes is not None
 
-            rpn_data = self.rpn_anchor_target(rpn_cls_score, gt_boxes, im_info, use_rand=False)
+            rpn_data = self.rpn_anchor_target(rpn_cls_score, gt_boxes, im_info)
 
             # Classification loss
             rpn_cls_score = rpn_cls_score_reshape.permute(0, 2, 3, 1).contiguous().view(-1, 2)

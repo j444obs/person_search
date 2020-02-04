@@ -64,7 +64,7 @@ class Network(nn.Module):
 
         if self.training:
             # Sample 128 rois and assign them labels and bbox regression targets
-            roi_data = self.proposal_target_layer(self.rois, gt_boxes, use_rand=False)
+            roi_data = self.proposal_target_layer(self.rois, gt_boxes)
             self.rois, rois_label, rois_target, rois_inside_ws, rois_outside_ws, pid_label = roi_data
         else:
             rois_label, rois_target, rois_inside_ws, rois_outside_ws, pid_label = [None] * 5

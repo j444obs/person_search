@@ -68,11 +68,10 @@ class PSDB(IMDB):
         all_imgs = [str(a[0][0]) for a in all_imgs]
 
         # Training images = all images - test images
-        # TODO: shuffle the training set
-        train = list(set(all_imgs) - set(test))
-        train.sort()
+        # train = list(set(all_imgs) - set(test))
+        # train.sort()
         # random.shuffle(train)
-        return train
+        return list(set(all_imgs) - set(test))
 
     def load_probes(self):
         """Load the list of (img, roi) for probes."""
