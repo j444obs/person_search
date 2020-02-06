@@ -128,13 +128,14 @@ class Network(nn.Module):
         self.base_feat_layer.apply(set_bn_eval)
 
     def get_training_params(self):
+        base_lr = cfg.TRAIN.LEARNING_RATE
         params = []
         for k, v in self.named_parameters():
             if v.requires_grad:
                 if 'BN' in k:
-                    params += [{'params': [v], 'lr_mult': 1, 'decay_mult': 0}]
+                    params += [{'params': [v], 'weight_decay': 0}]
                 elif 'bias' in k:
-                    params += [{'params': [v], 'lr_mult': 2, 'decay_mult': 0}]
+                    params += [{'params': [v], 'lr': 2 * base_lr, 'weight_decay': 0}]
                 else:
-                    params += [{'params': [v], 'lr_mult': 1, 'decay_mult': 1}]
+                    params += [{'params': [v]}]
         return params
