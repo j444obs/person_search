@@ -3,7 +3,6 @@ Author: Ross Girshick
 Description: Tools for training network.
 """
 
-import numpy as np
 import torch
 
 
@@ -21,20 +20,15 @@ def bbox_transform(ex_rois, gt_rois):
 
     targets_dx = (gt_ctr_x - ex_ctr_x) / ex_widths
     targets_dy = (gt_ctr_y - ex_ctr_y) / ex_heights
-    targets_dw = np.log(gt_widths / ex_widths)
-    targets_dh = np.log(gt_heights / ex_heights)
+    targets_dw = torch.log(gt_widths / ex_widths)
+    targets_dh = torch.log(gt_heights / ex_heights)
 
-    targets = np.vstack((targets_dx, targets_dy, targets_dw, targets_dh)).transpose()
+    targets = torch.stack((targets_dx, targets_dy, targets_dw, targets_dh), dim=1)
     return targets
 
 
 def bbox_transform_inv(boxes, deltas):
     """Apply transformer on the boxes."""
-    if boxes.shape[0] == 0:
-        return np.zeros((0, deltas.shape[1]), dtype=deltas.dtype)
-
-    boxes = boxes.astype(deltas.dtype, copy=False)
-
     widths = boxes[:, 2] - boxes[:, 0] + 1.0
     heights = boxes[:, 3] - boxes[:, 1] + 1.0
     ctr_x = boxes[:, 0] + 0.5 * widths
@@ -45,12 +39,12 @@ def bbox_transform_inv(boxes, deltas):
     dw = deltas[:, 2::4]
     dh = deltas[:, 3::4]
 
-    pred_ctr_x = dx * widths[:, np.newaxis] + ctr_x[:, np.newaxis]
-    pred_ctr_y = dy * heights[:, np.newaxis] + ctr_y[:, np.newaxis]
-    pred_w = np.exp(dw) * widths[:, np.newaxis]
-    pred_h = np.exp(dh) * heights[:, np.newaxis]
+    pred_ctr_x = dx * widths.unsqueeze(1) + ctr_x.unsqueeze(1)
+    pred_ctr_y = dy * heights.unsqueeze(1) + ctr_y.unsqueeze(1)
+    pred_w = torch.exp(dw) * widths.unsqueeze(1)
+    pred_h = torch.exp(dh) * heights.unsqueeze(1)
 
-    pred_boxes = np.zeros(deltas.shape, dtype=deltas.dtype)
+    pred_boxes = deltas.clone()
     pred_boxes[:, 0::4] = pred_ctr_x - 0.5 * pred_w  # x1
     pred_boxes[:, 1::4] = pred_ctr_y - 0.5 * pred_h  # y1
     pred_boxes[:, 2::4] = pred_ctr_x + 0.5 * pred_w - 1  # x2
@@ -61,18 +55,15 @@ def bbox_transform_inv(boxes, deltas):
 
 def clip_boxes(boxes, im_shape):
     """Clip boxes to image boundaries."""
-    boxes[:, 0::4] = np.maximum(np.minimum(boxes[:, 0::4], im_shape[1] - 1), 0)  # x1 >= 0
-    boxes[:, 1::4] = np.maximum(np.minimum(boxes[:, 1::4], im_shape[0] - 1), 0)  # y1 >= 0
-    boxes[:, 2::4] = np.maximum(np.minimum(boxes[:, 2::4], im_shape[1] - 1), 0)  # x2 < im_shape[1]
-    boxes[:, 3::4] = np.maximum(np.minimum(boxes[:, 3::4], im_shape[0] - 1), 0)  # y2 < im_shape[0]
+    boxes[:, 0::4].clamp_(0, im_shape[1] - 1)
+    boxes[:, 1::4].clamp_(0, im_shape[0] - 1)
+    boxes[:, 2::4].clamp_(0, im_shape[1] - 1)
+    boxes[:, 3::4].clamp_(0, im_shape[0] - 1)
     return boxes
 
 
 def bbox_overlaps(boxes, query_boxes):
     """Compute the overlaps between anchors and gt_boxes."""
-    boxes = torch.from_numpy(boxes)
-    query_boxes = torch.from_numpy(query_boxes)
-
     box_areas = (boxes[:, 2] - boxes[:, 0] + 1) * (boxes[:, 3] - boxes[:, 1] + 1)
     query_areas = ((query_boxes[:, 2] - query_boxes[:, 0] + 1) *
                    (query_boxes[:, 3] - query_boxes[:, 1] + 1))
@@ -84,23 +75,15 @@ def bbox_overlaps(boxes, query_boxes):
     ua = box_areas.view(-1, 1) + query_areas.view(1, -1) - iw * ih
     overlaps = iw * ih / ua
 
-    return overlaps.numpy()
+    return overlaps
 
 
 def filter_boxes(boxes, min_size):
     """Remove all boxes with any side smaller than min_size."""
     ws = boxes[:, 2] - boxes[:, 0] + 1
     hs = boxes[:, 3] - boxes[:, 1] + 1
-    keep = np.where((ws >= min_size) & (hs >= min_size))[0]
+    keep = torch.nonzero((ws >= min_size) & (hs >= min_size))[:, 0]
     return keep
-
-
-def compute_targets(ex_rois, gt_rois):
-    """Compute bounding-box regression targets for an image."""
-    assert ex_rois.shape[0] == gt_rois.shape[0]
-    assert ex_rois.shape[1] == 4
-    assert gt_rois.shape[1] >= 5
-    return bbox_transform(ex_rois, gt_rois[:, :4]).astype(np.float32, copy=False)
 
 
 # def smooth_l1_loss(pred, targets, inside_ws, outside_ws, sigma=1):
@@ -117,7 +100,9 @@ def compute_targets(ex_rois, gt_rois):
 #     loss = outside_ws * loss
 #     return loss.sum()
 
-def smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights, sigma=1.0, dim=[1]):
+def smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights, sigma=1.0, dim=None):
+    if dim is None:
+        dim = [1]
     sigma_2 = sigma ** 2
     box_diff = bbox_pred - bbox_targets
     in_box_diff = bbox_inside_weights * box_diff
@@ -131,3 +116,9 @@ def smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_we
         loss_box = loss_box.sum(i)
     loss_box = loss_box.mean()
     return loss_box
+
+
+def torch_rand_choice(arr, size):
+    """Generates a random sample from a given array, like numpy.random.choice."""
+    idxs = torch.randperm(arr.size(0))[:size]
+    return arr[idxs]

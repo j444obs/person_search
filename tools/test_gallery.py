@@ -62,9 +62,9 @@ def im_detect(net, im):
             num_classes = box_deltas.shape[1] // 4
             stds = np.tile(cfg.TRAIN.BBOX_NORMALIZE_STDS, num_classes)
             means = np.tile(cfg.TRAIN.BBOX_NORMALIZE_MEANS, num_classes)
-            box_deltas = box_deltas * stds + means
-        boxes = bbox_transform_inv(boxes, box_deltas)
-        boxes = clip_boxes(boxes, im.shape)
+            box_deltas = (box_deltas * stds + means).astype(np.float32)
+        boxes = bbox_transform_inv(torch.from_numpy(boxes), torch.from_numpy(box_deltas)).numpy()
+        boxes = clip_boxes(torch.from_numpy(boxes), im.shape).numpy()
     else:
         # Simply repeat the boxes, once for each class
         boxes = np.tile(boxes, (1, scores.shape[1]))

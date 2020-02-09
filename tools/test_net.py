@@ -60,9 +60,9 @@ def main():
     imdb = get_imdb('psdb_test')
 
     # 1. Detect and extract features from all the gallery images in the imdb
-    net = torch.load('net.pth')
-    # net = Network()
-    # init_from_caffe(net)
+    # net = torch.load('net.pth')
+    net = Network()
+    init_from_caffe(net)
     net.eval()
     net.cuda()
     gboxes, gfeatures = detect_and_exfeat(net, imdb)

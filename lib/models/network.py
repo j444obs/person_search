@@ -139,3 +139,8 @@ class Network(nn.Module):
                 else:
                     params += [{'params': [v]}]
         return params
+
+    def cuda(self):
+        nn.Module.cuda(self)
+        self.unlabeled_matching_layer.queue.data = self.unlabeled_matching_layer.queue.data.cuda()
+        self.labeled_matching_layer.lookup_table = self.labeled_matching_layer.lookup_table.cuda()

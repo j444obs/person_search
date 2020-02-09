@@ -7,7 +7,7 @@ class CircularQueue:
     """A simple circular queue with only tail pointer."""
 
     def __init__(self, queue_size=5000, feat_len=256):
-        self.data = torch.zeros(queue_size, feat_len).cuda()
+        self.data = torch.zeros(queue_size, feat_len)
         self.tail = 0
         self.queue_size = queue_size
         self.feat_len = feat_len

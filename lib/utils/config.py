@@ -85,7 +85,7 @@ cfg.TRAIN.RPN_POSITIVE_OVERLAP = 0.7
 cfg.TRAIN.RPN_NEGATIVE_OVERLAP = 0.3
 
 # If an anchor statisfied by positive and negative conditions set to negative
-cfg.TRAIN.RPN_CLOBBER_POSITIVES = False
+# cfg.TRAIN.RPN_CLOBBER_POSITIVES = False
 
 # Max number of foreground examples
 cfg.TRAIN.RPN_FG_FRACTION = 0.5
@@ -111,7 +111,7 @@ cfg.TRAIN.RPN_BBOX_INSIDE_WEIGHTS = (1.0, 1.0, 1.0, 1.0)
 # Give the positive RPN examples weight of p * 1 / {num positives}
 # and give negatives a weight of (1 - p)
 # Set to -1.0 to use uniform example weighting
-cfg.TRAIN.RPN_POSITIVE_WEIGHT = -1.0
+# cfg.TRAIN.RPN_POSITIVE_WEIGHT = -1.0
 
 
 #####################

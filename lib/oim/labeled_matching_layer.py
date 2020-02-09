@@ -39,7 +39,7 @@ class LabeledMatchingLayer(nn.Module):
 
     def __init__(self, num_classes=5532, feat_len=256):
         super(LabeledMatchingLayer, self).__init__()
-        self.lookup_table = torch.zeros(num_classes, feat_len).cuda()
+        self.lookup_table = torch.zeros(num_classes, feat_len)
         self.num_classes = num_classes
         self.feat_len = feat_len
 
