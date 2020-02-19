@@ -1,8 +1,11 @@
-"""
-Author: Ross Girshick
-Last editor: 520Chris
-Description: Get minibatch blobs from given roidb.
-"""
+# --------------------------------------------------------
+# Fast R-CNN
+# Copyright (c) 2015 Microsoft
+# Licensed under The MIT License [see LICENSE for details]
+# Written by Ross Girshick
+# --------------------------------------------------------
+
+"""Compute minibatch blobs for training a Fast R-CNN network."""
 
 import cv2
 import numpy as np
@@ -23,8 +26,8 @@ def get_minibatch(roidb):
     im_blob, im_scales = get_image_blob(roidb, random_scale_inds)
 
     # GT boxes: (x1, y1, x2, y2, class, pid)
-    gt_boxes = np.empty((roidb[0]['boxes'].shape[0], 6), dtype=np.float32)
-    gt_boxes[:, 0:4] = roidb[0]["boxes"] * im_scales[0]
+    gt_boxes = np.empty((roidb[0]['gt_boxes'].shape[0], 6), dtype=np.float32)
+    gt_boxes[:, 0:4] = roidb[0]["gt_boxes"] * im_scales[0]
     gt_boxes[:, 4] = 1
     gt_boxes[:, 5] = roidb[0]["gt_pids"]
 

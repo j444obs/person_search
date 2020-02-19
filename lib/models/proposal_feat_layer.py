@@ -1,9 +1,3 @@
-"""
-Author: 520Chris
-Description: Extract the features of region proposals to identify
-             their classes and regression targets.
-"""
-
 import torch.nn as nn
 
 

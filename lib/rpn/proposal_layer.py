@@ -5,6 +5,8 @@
 # Written by Ross Girshick and Sean Bell
 # --------------------------------------------------------
 
+import os
+
 import torch
 import torch.nn as nn
 from torchvision.ops import nms
@@ -26,7 +28,7 @@ class ProposalLayer(nn.Module):
         self.anchors = generate_anchors()
         self.num_anchors = self.anchors.size(0)
 
-    def forward(self, scores, bbox_deltas, im_info, use_nms=True, use_np_sort=False):
+    def forward(self, scores, bbox_deltas, im_info):
         # Algorithm:
         #
         # for each (H, W) location i
@@ -105,7 +107,7 @@ class ProposalLayer(nn.Module):
 
         # 4. Sort all (proposal, score) pairs by score from highest to lowest
         # 5. Take top pre_nms_topN (e.g. 6000)
-        if use_np_sort:
+        if 'DEBUG' in os.environ:
             import numpy as np
             order = np.argsort(scores.view(-1)).numpy()[::-1]
             order = torch.from_numpy(order.copy())
@@ -119,7 +121,7 @@ class ProposalLayer(nn.Module):
         # 6. Apply nms (e.g. threshold = 0.7)
         # 7. Take after_nms_topN (e.g. 300)
         # 8. Return the top proposals
-        if use_nms:
+        if 'DEBUG' not in os.environ:
             keep = nms(proposals, scores.squeeze(1), nms_thresh)
         else:
             keep = torch.arange(proposals.shape[0])

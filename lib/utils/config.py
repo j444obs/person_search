@@ -184,14 +184,14 @@ cfg.ANCHOR_RATIOS = [0.5, 1, 2]
 cfg.FEAT_STRIDE = [16, ]
 
 
-def get_output_dir(imdb_name, net_name=None):
-    """Return the directory where the experiment results are saved."""
-    outdir = osp.abspath(osp.join(cfg.ROOT_DIR, 'output', imdb_name))
-    if net_name is not None:
-        outdir = osp.join(outdir, net_name)
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
-    return outdir
+# def get_output_dir(imdb_name, net_name=None):
+#     """Return the directory where the experiment results are saved."""
+#     outdir = osp.abspath(osp.join(cfg.ROOT_DIR, 'output', imdb_name))
+#     if net_name is not None:
+#         outdir = osp.join(outdir, net_name)
+#     if not os.path.exists(outdir):
+#         os.makedirs(outdir)
+#     return outdir
 
 
 def merge_a_into_b(a, b):

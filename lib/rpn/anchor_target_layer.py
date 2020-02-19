@@ -5,6 +5,8 @@
 # Written by Ross Girshick and Sean Bell
 # --------------------------------------------------------
 
+import os
+
 import torch
 import torch.nn as nn
 
@@ -25,7 +27,7 @@ class AnchorTargetLayer(nn.Module):
         self.anchors = generate_anchors()
         self.num_anchors = self.anchors.size(0)
 
-    def forward(self, rpn_cls_score, gt_boxes, im_info, use_rand=True, use_np=False):
+    def forward(self, rpn_cls_score, gt_boxes, im_info):
         # Algorithm:
         #
         # for each (H, W) location i
@@ -66,7 +68,7 @@ class AnchorTargetLayer(nn.Module):
 
         overlaps = bbox_overlaps(anchors, gt_boxes)
 
-        if use_np:
+        if 'DEBUG' in os.environ:
             import numpy as np
             argmax_overlaps = np.argmax(overlaps, axis=1)
             max_overlaps = torch.from_numpy(np.max(overlaps.numpy(), axis=1))
@@ -95,7 +97,7 @@ class AnchorTargetLayer(nn.Module):
         num_fg = int(cfg.TRAIN.RPN_FG_FRACTION * cfg.TRAIN.RPN_BATCHSIZE)
         fg_inds = torch.nonzero(labels == 1)[:, 0]
         if len(fg_inds) > num_fg:
-            if use_rand:
+            if 'DEBUG' not in os.environ:
                 disable_inds = torch_rand_choice(fg_inds, len(fg_inds) - num_fg)
             else:
                 disable_inds = fg_inds[:len(fg_inds) - num_fg]
@@ -105,7 +107,7 @@ class AnchorTargetLayer(nn.Module):
         num_bg = cfg.TRAIN.RPN_BATCHSIZE - torch.sum(labels == 1)
         bg_inds = torch.nonzero(labels == 0)[:, 0]
         if len(bg_inds) > num_bg:
-            if use_rand:
+            if 'DEBUG' not in os.environ:
                 disable_inds = torch_rand_choice(bg_inds, len(bg_inds) - num_bg)
             else:
                 disable_inds = bg_inds[:len(bg_inds) - num_bg]
@@ -115,7 +117,7 @@ class AnchorTargetLayer(nn.Module):
         bbox_targets = bbox_transform(anchors, gt_boxes[argmax_overlaps, :4])
 
         bbox_inside_weights = gt_boxes.new(bbox_targets.shape).zero_()
-        bbox_inside_weights[labels == 1] = torch.Tensor(cfg.TRAIN.RPN_BBOX_INSIDE_WEIGHTS)
+        bbox_inside_weights[labels == 1] = gt_boxes.new(cfg.TRAIN.RPN_BBOX_INSIDE_WEIGHTS)
 
         bbox_outside_weights = gt_boxes.new(bbox_targets.shape).zero_()
         num_examples = torch.sum(labels >= 0)

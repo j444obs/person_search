@@ -1,8 +1,3 @@
-"""
-Author: 520Chris
-Description: person search network based on resnet50.
-"""
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -21,10 +16,10 @@ from utils.net_utils import smooth_l1_loss
 class Network(nn.Module):
     """Person search network."""
 
-    def __init__(self):
+    def __init__(self, pretrained_model=None):
         super(Network, self).__init__()
-        rpn_depth = 1024  # depth of the feature map fed into RPN
-        num_classes = 2   # bg and fg
+        rpn_depth = 1024  # Depth of the feature map fed into RPN
+        num_classes = 2   # Background and foreground
 
         # Extracting feature layer
         self.base_feat_layer = BaseFeatLayer()
@@ -41,11 +36,16 @@ class Network(nn.Module):
         self.roi_pool = RoIPool((pool_size, pool_size), 1.0 / 16.0)
 
         # Identification layer
-        self.cls_score = nn.Linear(2048, 2)
+        self.cls_score = nn.Linear(2048, num_classes)
         self.bbox_pred = nn.Linear(2048, num_classes * 4)
         self.feat_lowdim = nn.Linear(2048, 256)
         self.labeled_matching_layer = LabeledMatchingLayer()
         self.unlabeled_matching_layer = UnlabeledMatchingLayer()
+
+        if pretrained_model:
+            state_dict = torch.load(pretrained_model)
+            self.load_state_dict({k: v for k, v in state_dict.items() if k in self.state_dict()})
+            print("Loaded pretrained model from: %s" % pretrained_model)
 
         self.frozen_blocks()
 
@@ -65,9 +65,9 @@ class Network(nn.Module):
         if self.training:
             # Sample 128 rois and assign them labels and bbox regression targets
             roi_data = self.proposal_target_layer(self.rois, gt_boxes)
-            self.rois, rois_label, rois_target, rois_inside_ws, rois_outside_ws, pid_label = roi_data
+            self.rois, rois_label, pid_label, rois_target, rois_inside_ws, rois_outside_ws = roi_data
         else:
-            rois_label, rois_target, rois_inside_ws, rois_outside_ws, pid_label = [None] * 5
+            rois_label, pid_label, rois_target, rois_inside_ws, rois_outside_ws = [None] * 5
 
         # Do roi pooling based on region proposals
         if cfg.POOLING_MODE == 'align':
@@ -78,10 +78,9 @@ class Network(nn.Module):
             raise NotImplementedError("Only support roi_align and roi_pool.")
 
         # Extract the features of proposals
-        if not is_prob:
-            proposal_feat = self.proposal_feat_layer(pooled_feat).squeeze()
-        else:
-            proposal_feat = self.proposal_feat_layer(pooled_feat).squeeze().unsqueeze(0)
+        proposal_feat = self.proposal_feat_layer(pooled_feat).squeeze()
+        if is_prob:
+            proposal_feat = proposal_feat.unsqueeze(0)
 
         cls_score = self.cls_score(proposal_feat)
         cls_prob = F.softmax(cls_score, dim=1)
@@ -118,29 +117,17 @@ class Network(nn.Module):
                 for p in m.parameters():
                     p.requires_grad = False
 
-        def set_bn_eval(m):
-            classname = m.__class__.__name__
-            if classname.find('BatchNorm') != -1:
-                m.eval()
-
-        # frozen the BN layers in base_feat_layer
+        # Frozen all bn layers in base_feat_layer
         self.base_feat_layer.apply(set_bn_fix)
-        self.base_feat_layer.apply(set_bn_eval)
 
-    def get_training_params(self):
-        base_lr = cfg.TRAIN.LEARNING_RATE
-        params = []
-        for k, v in self.named_parameters():
-            if v.requires_grad:
-                if 'BN' in k:
-                    params += [{'params': [v], 'weight_decay': 0}]
-                elif 'bias' in k:
-                    params += [{'params': [v], 'lr': 2 * base_lr, 'weight_decay': 0}]
-                else:
-                    params += [{'params': [v]}]
-        return params
+    def train(self, mode=True):
+        nn.Module.train(self, mode)
 
-    def cuda(self):
-        nn.Module.cuda(self)
-        self.unlabeled_matching_layer.queue.data = self.unlabeled_matching_layer.queue.data.cuda()
-        self.labeled_matching_layer.lookup_table = self.labeled_matching_layer.lookup_table.cuda()
+        if mode:
+            # Set all bn layers in base_feat_layer to eval mode
+            def set_bn_eval(m):
+                classname = m.__class__.__name__
+                if classname.find('BatchNorm') != -1:
+                    m.eval()
+
+            self.base_feat_layer.apply(set_bn_eval)

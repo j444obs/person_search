@@ -5,6 +5,8 @@
 # Written by Ross Girshick and Sean Bell
 # --------------------------------------------------------
 
+import os
+
 import torch
 import torch.nn as nn
 
@@ -23,7 +25,7 @@ class ProposalTargetLayer(nn.Module):
         self.num_classes = num_classes
         self.bg_pid_label = bg_pid_label
 
-    def forward(self, all_rois, gt_boxes, use_rand=True):
+    def forward(self, all_rois, gt_boxes):
         # all_rois: region proposals in (0, x1, y1, x2, y2) format coming from RPN
         # gt_boxes: (x1, y1, x2, y2, class, pid)
 
@@ -47,7 +49,7 @@ class ProposalTargetLayer(nn.Module):
         fg_inds = torch.nonzero(max_overlaps >= cfg.TRAIN.FG_THRESH)[:, 0]
         num_fg_rois = min(num_fg_rois, fg_inds.numel())
         if fg_inds.numel() > 0:
-            if use_rand:
+            if 'DEBUG' not in os.environ:
                 fg_inds = torch_rand_choice(fg_inds, num_fg_rois)
             else:
                 fg_inds = fg_inds[:num_fg_rois]
@@ -57,7 +59,7 @@ class ProposalTargetLayer(nn.Module):
                                 (max_overlaps >= cfg.TRAIN.BG_THRESH_LO))[:, 0]
         num_bg_rois = min(num_rois - num_fg_rois, bg_inds.numel())
         if bg_inds.numel() > 0:
-            if use_rand:
+            if 'DEBUG' not in os.environ:
                 bg_inds = torch_rand_choice(bg_inds, num_bg_rois)
             else:
                 bg_inds = bg_inds[:num_bg_rois]

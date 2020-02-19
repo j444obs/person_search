@@ -7,8 +7,8 @@ class LabeledMatching(Function):
 
     @staticmethod
     def forward(ctx, feats, pid_labels, lookup_table, momentum=0.5):
-        # The lookup_table can't be saved with ctx.save_for_backward(), as we would modify
-        # the variable which has the same memory address in backward()
+        # The lookup_table can't be saved with ctx.save_for_backward(), as we would
+        # modify the variable which has the same memory address in backward()
         ctx.save_for_backward(feats, pid_labels)
         ctx.lookup_table = lookup_table
         ctx.momentum = momentum
@@ -39,9 +39,9 @@ class LabeledMatchingLayer(nn.Module):
 
     def __init__(self, num_classes=5532, feat_len=256):
         super(LabeledMatchingLayer, self).__init__()
-        self.lookup_table = torch.zeros(num_classes, feat_len)
         self.num_classes = num_classes
         self.feat_len = feat_len
+        self.register_buffer('lookup_table', torch.zeros(num_classes, feat_len))
 
     def forward(self, feats, pid_labels):
         assert feats.size(1) == self.feat_len, "Feature length does not match."
