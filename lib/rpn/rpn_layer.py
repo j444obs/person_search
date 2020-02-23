@@ -1,8 +1,3 @@
-"""
-Author: https://github.com/jwyang/faster-rcnn.pytorch.git
-Description: Region proposal network.
-"""
-
 import torch.nn as nn
 import torch.nn.functional as F
 

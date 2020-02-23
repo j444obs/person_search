@@ -19,6 +19,7 @@ class PSDB(Dataset):
         self.db_name = db_name
         self.root_dir = root_dir if root_dir else osp.join(cfg.DATA_DIR, "dataset")
         self.data_path = osp.join(self.root_dir, "Image", "SSM")
+        self.classes = ['background', 'person']
         self.image_index = self.load_image_index()
         self.roidb = self.load_roidb()
         if db_name == 'psdb_test':
@@ -81,8 +82,7 @@ class PSDB(Dataset):
 
         # Training images = all images - test images
         train = list(set(all_imgs) - set(test))
-        if 'DEBUG' in os.environ:
-            train.sort()
+        train.sort()
         return train
 
     def load_probes(self):

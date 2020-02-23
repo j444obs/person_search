@@ -1,8 +1,3 @@
-"""
-Author: https://github.com/ShuangLI59/person_search.git
-Description: Tools for testing gallery.
-"""
-
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
@@ -94,7 +89,7 @@ def vis_detections(im, class_name, dets, thresh=0.3):
 
 
 def detect_and_exfeat(net, imdb, thresh=0.05, vis=False):
-    assert imdb.num_classes == 2, "Only support two-class detection"
+    assert len(imdb.classes) == 2, "Only support two-class detection"
 
     num_images = imdb.num_images
 

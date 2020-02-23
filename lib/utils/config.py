@@ -1,8 +1,13 @@
-"""
-Author: Ross Girshick
-Description:
+# --------------------------------------------------------
+# Fast R-CNN
+# Copyright (c) 2015 Microsoft
+# Licensed under The MIT License [see LICENSE for details]
+# Written by Ross Girshick
+# --------------------------------------------------------
 
-This file specifies default config options for the network. You should not
+"""Fast R-CNN config system.
+
+This file specifies default config options for Fast R-CNN. You should not
 change values in this file. Instead, you should write a config file (in yaml)
 and use cfg_from_file(yaml_file) to load it and override the default options.
 
@@ -11,7 +16,6 @@ Most tools in $ROOT/tools take a --cfg option to specify an override file.
     - See cfgs/*.yml for example YAML config override files
 """
 
-import os
 import os.path as osp
 
 import numpy as np

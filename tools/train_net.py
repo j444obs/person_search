@@ -7,8 +7,10 @@ import time
 import numpy as np
 import torch
 import torch.optim as optim
+from torch.utils.data import DataLoader
 
-from datasets.dataloader import get_dataloader
+from datasets.psdb import PSDB
+from datasets.sampler import PSSampler
 from models.network import Network
 from utils.config import cfg, cfg_from_file
 
@@ -50,6 +52,7 @@ if __name__ == '__main__':
 
     if not args.rand:
         # Fix the random seeds (numpy and pytorch) for reproducibility
+        print("Set to none random mode.")
         torch.manual_seed(cfg.RNG_SEED)
         torch.cuda.manual_seed(cfg.RNG_SEED)
         torch.cuda.manual_seed_all(cfg.RNG_SEED)
@@ -63,7 +66,9 @@ if __name__ == '__main__':
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    dataloader = get_dataloader(args.dataset)
+    assert args.dataset in ['psdb_train', 'psdb_test'], "Unknown dataset: %s" % args.dataset
+    psdb = PSDB(args.dataset)
+    dataloader = DataLoader(psdb, batch_size=1, sampler=PSSampler(psdb))
     print("Loaded dataset: %s" % args.dataset)
 
     # Set model and optimizer
@@ -86,8 +91,8 @@ if __name__ == '__main__':
 
     # Training settings
     start_epoch = 0
-    display = 20  # Display the loss every 20 steps
-    lr_decay = 4  # Decay the learning rate every 4 epochs
+    display = 20  # Display the loss every `display` steps
+    lr_decay = 4  # Decay the learning rate every `lr_decay` epochs
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=40000, gamma=0.1)
     iter_size = 2  # Each update use accumulated gradient by `iter_size` iterations
     use_caffe_smooth_loss = True
@@ -166,12 +171,11 @@ if __name__ == '__main__':
 
                     real_steps_per_epoch = int(len(dataloader) / iter_size)
                     print("-----------------------------------------------------------------")
-                    print("Epoch: [%s / %s], iteration [%s / %s]" %
-                          (epoch, args.epoch - 1, real_step, real_steps_per_epoch - 1))
+                    print("Epoch: [%s / %s], iteration [%s / %s], loss: %.4f" %
+                          (epoch, args.epoch - 1, real_step, real_steps_per_epoch - 1, display_loss))
                     print("Time cost: %.2f seconds" % (time.time() - start))
                     print("Learning rate: %s" % optimizer.param_groups[0]['lr'])
-                    print("Loss: %.4f" % display_loss)
-                    print("Current iteration loss:")
+                    print("The %s-th iteration loss:" % real_step)
                     print("  rpn_loss_cls: %.4f, rpn_loss_bbox: %.4f" % (rpn_loss_cls, rpn_loss_bbox))
                     print("  loss_cls: %.4f, loss_bbox: %.4f, loss_id: %.4f" % (loss_cls, loss_bbox, loss_id))
 

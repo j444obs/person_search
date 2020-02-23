@@ -29,7 +29,7 @@ class UnlabeledMatching(Function):
         # Update circular queue, but not by standard backpropagation with gradients
         for indx, label in enumerate(pid_labels):
             if label == -1:
-                queue[tail] = feats[indx]
+                queue[tail, :64] = feats[indx, :64]
                 tail += 1
                 if tail >= queue.size(0):
                     tail -= queue.size(0)

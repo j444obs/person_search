@@ -7,7 +7,7 @@ from models.network import Network
 
 def init_from_caffe(net):
     dict_new = net.state_dict().copy()
-    weight_path = '/home/zjli/Desktop/person_search/resnet50_caffe.pkl'
+    weight_path = '/home/zjli/Desktop/person_search/pkls/resnet50_caffe.pkl'
     caffe_weights = pickle.load(open(weight_path, "rb"), encoding='latin1')
     for k in net.state_dict():
         splits = k.split('.')

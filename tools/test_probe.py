@@ -1,8 +1,3 @@
-"""
-Author: https://github.com/ShuangLI59/person_search.git
-Description: Tools fro testing probes.
-"""
-
 import torch
 import cv2
 import numpy as np

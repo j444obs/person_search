@@ -1,8 +1,3 @@
-"""
-Author: Ross Girshick
-Description: pickle and unpickle wrapper.
-"""
-
 import pickle as pk
 
 

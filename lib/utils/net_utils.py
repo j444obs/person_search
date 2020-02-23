@@ -1,8 +1,3 @@
-"""
-Author: Ross Girshick
-Description: Tools for training network.
-"""
-
 import torch
 
 
@@ -85,20 +80,6 @@ def filter_boxes(boxes, min_size):
     keep = torch.nonzero((ws >= min_size) & (hs >= min_size))[:, 0]
     return keep
 
-
-# def smooth_l1_loss(pred, targets, inside_ws, outside_ws, sigma=1):
-#     """
-#     Compute smooth l1 loss for faster-rcnn network.
-
-#         f(x) = 0.5 * (sigma * x)^2          if |x| < 1 / sigma / sigma
-#                |x| - 0.5 / sigma / sigma    otherwise
-#     """
-#     sigma_2 = sigma ** 2
-#     x = inside_ws * (pred - targets)
-#     sign = (x.abs() < 1 / sigma_2).detach().float()
-#     loss = 0.5 * sigma_2 * x.pow(2) * sign + (x.abs() - 0.5 / sigma_2) * (1 - sign)
-#     loss = outside_ws * loss
-#     return loss.sum()
 
 def smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights, sigma=1.0, dim=None):
     if dim is None:

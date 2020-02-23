@@ -1,12 +1,7 @@
-"""
-Author: https://github.com/ShuangLI59/person_search.git
-Description: Test utils for person search.
-"""
-
 import cv2
 import numpy as np
 
-from roi_data_layer.minibatch import im_list_to_blob
+from datasets.minibatch import im_list_to_blob
 from utils.config import cfg
 
 

@@ -70,9 +70,9 @@ class AnchorTargetLayer(nn.Module):
 
         if 'DEBUG' in os.environ:
             import numpy as np
-            argmax_overlaps = np.argmax(overlaps, axis=1)
-            max_overlaps = torch.from_numpy(np.max(overlaps.numpy(), axis=1))
-            gt_max_overlaps = torch.from_numpy(np.max(overlaps.numpy(), axis=0))
+            argmax_overlaps = np.argmax(overlaps.cpu(), axis=1)
+            max_overlaps = torch.from_numpy(np.max(overlaps.cpu().numpy(), axis=1))
+            gt_max_overlaps = torch.from_numpy(np.max(overlaps.cpu().numpy(), axis=0)).type_as(overlaps)
             gt_argmax_overlaps = np.nonzero(overlaps == gt_max_overlaps)[:, 0]
         else:
             argmax_overlaps = overlaps.argmax(dim=1)
@@ -97,20 +97,20 @@ class AnchorTargetLayer(nn.Module):
         num_fg = int(cfg.TRAIN.RPN_FG_FRACTION * cfg.TRAIN.RPN_BATCHSIZE)
         fg_inds = torch.nonzero(labels == 1)[:, 0]
         if len(fg_inds) > num_fg:
-            if 'DEBUG' not in os.environ:
-                disable_inds = torch_rand_choice(fg_inds, len(fg_inds) - num_fg)
-            else:
+            if 'DEBUG' in os.environ:
                 disable_inds = fg_inds[:len(fg_inds) - num_fg]
+            else:
+                disable_inds = torch_rand_choice(fg_inds, len(fg_inds) - num_fg)
             labels[disable_inds] = -1
 
         # subsample negative labels if we have too many
         num_bg = cfg.TRAIN.RPN_BATCHSIZE - torch.sum(labels == 1)
         bg_inds = torch.nonzero(labels == 0)[:, 0]
         if len(bg_inds) > num_bg:
-            if 'DEBUG' not in os.environ:
-                disable_inds = torch_rand_choice(bg_inds, len(bg_inds) - num_bg)
-            else:
+            if 'DEBUG' in os.environ:
                 disable_inds = bg_inds[:len(bg_inds) - num_bg]
+            else:
+                disable_inds = torch_rand_choice(bg_inds, len(bg_inds) - num_bg)
             labels[disable_inds] = -1
 
         # gt_boxes: (x1, y1, x2, y2, class, pid)

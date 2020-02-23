@@ -109,7 +109,7 @@ class ProposalLayer(nn.Module):
         # 5. Take top pre_nms_topN (e.g. 6000)
         if 'DEBUG' in os.environ:
             import numpy as np
-            order = np.argsort(scores.view(-1)).numpy()[::-1]
+            order = np.argsort(scores.view(-1).cpu()).numpy()[::-1]
             order = torch.from_numpy(order.copy())
         else:
             order = scores.view(-1).argsort(descending=True)
@@ -121,10 +121,10 @@ class ProposalLayer(nn.Module):
         # 6. Apply nms (e.g. threshold = 0.7)
         # 7. Take after_nms_topN (e.g. 300)
         # 8. Return the top proposals
-        if 'DEBUG' not in os.environ:
-            keep = nms(proposals, scores.squeeze(1), nms_thresh)
-        else:
+        if 'DEBUG' in os.environ:
             keep = torch.arange(proposals.shape[0])
+        else:
+            keep = nms(proposals, scores.squeeze(1), nms_thresh)
         if post_nms_topN > 0:
             keep = keep[:post_nms_topN]
         proposals = proposals[keep]

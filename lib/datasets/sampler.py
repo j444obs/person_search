@@ -1,10 +1,8 @@
 import os
 
 import numpy as np
-from torch.utils.data import DataLoader
 from torch.utils.data.sampler import Sampler
 
-from datasets.psdb import PSDB
 from utils.config import cfg
 
 
@@ -35,9 +33,3 @@ class PSSampler(Sampler):
 
     def __len__(self):
         return len(self.roidb)
-
-
-def get_dataloader(db_name, num_workers=0):
-    assert db_name in ['psdb_train', 'psdb_test'], "Unknown dataset: %s" % db_name
-    dataset = PSDB(db_name)
-    return DataLoader(dataset, batch_size=1, sampler=PSSampler(dataset), num_workers=num_workers)

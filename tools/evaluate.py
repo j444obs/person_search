@@ -28,7 +28,7 @@ def evaluate_detections(psdb, gallery_det, det_thresh=0.5, iou_thresh=0.5, label
     y_true, y_score = [], []
     count_gt, count_tp = 0, 0
     for gt, det in zip(roidb, gallery_det):
-        gt_boxes = gt["boxes"]
+        gt_boxes = gt["gt_boxes"]
         if labeled_only:
             inds = np.where(gt["gt_pids"].ravel() > 0)[0]
             if len(inds) == 0:
