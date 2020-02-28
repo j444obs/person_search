@@ -34,7 +34,7 @@ class ProposalTargetLayer(nn.Module):
         all_rois = torch.cat((all_rois, torch.cat((zeros, gt_boxes[:, :4]), dim=1)), dim=0)
 
         # Sanity check: single batch only
-        assert torch.all(all_rois[:, 0] == 0), 'Single batch only.'
+        assert torch.all(all_rois[:, 0] == 0), "Single batch only."
 
         num_rois = cfg.TRAIN.BATCH_SIZE
         num_fg_rois = round(cfg.TRAIN.FG_FRACTION * num_rois)
@@ -49,17 +49,18 @@ class ProposalTargetLayer(nn.Module):
         fg_inds = torch.nonzero(max_overlaps >= cfg.TRAIN.FG_THRESH)[:, 0]
         num_fg_rois = min(num_fg_rois, fg_inds.numel())
         if fg_inds.numel() > 0:
-            if 'DEBUG' in os.environ:
+            if "DEBUG" in os.environ:
                 fg_inds = fg_inds[:num_fg_rois]
             else:
                 fg_inds = torch_rand_choice(fg_inds, num_fg_rois)
 
         # Sample background RoIs
-        bg_inds = torch.nonzero((max_overlaps < cfg.TRAIN.BG_THRESH_HI) &
-                                (max_overlaps >= cfg.TRAIN.BG_THRESH_LO))[:, 0]
+        bg_inds = torch.nonzero(
+            (max_overlaps < cfg.TRAIN.BG_THRESH_HI) & (max_overlaps >= cfg.TRAIN.BG_THRESH_LO)
+        )[:, 0]
         num_bg_rois = min(num_rois - num_fg_rois, bg_inds.numel())
         if bg_inds.numel() > 0:
-            if 'DEBUG' in os.environ:
+            if "DEBUG" in os.environ:
                 bg_inds = bg_inds[:num_bg_rois]
             else:
                 bg_inds = torch_rand_choice(bg_inds, num_bg_rois)
@@ -82,7 +83,9 @@ class ProposalTargetLayer(nn.Module):
             stds = gt_boxes.new(cfg.TRAIN.BBOX_NORMALIZE_STDS)
             bbox_targets_data = (bbox_targets_data - means) / stds
 
-        regression_targets = self.get_regression_targets(bbox_targets_data, labels, self.num_classes)
+        regression_targets = self.get_regression_targets(
+            bbox_targets_data, labels, self.num_classes
+        )
         bbox_targets, bbox_inside_ws, bbox_outside_ws = regression_targets
 
         return rois, labels.long(), pid_labels.long(), bbox_targets, bbox_inside_ws, bbox_outside_ws

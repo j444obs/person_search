@@ -4,7 +4,6 @@ from torch.autograd import Function
 
 
 class UnlabeledMatching(Function):
-
     @staticmethod
     def forward(ctx, feats, pid_labels, queue, tail):
         # The queue/tail can't be saved with ctx.save_for_backward(), as we would
@@ -42,8 +41,8 @@ class UnlabeledMatchingLayer(nn.Module):
 
     def __init__(self, queue_size=5000, feat_len=256):
         super(UnlabeledMatchingLayer, self).__init__()
-        self.register_buffer('queue', torch.zeros(queue_size, feat_len))
-        self.register_buffer('tail', torch.tensor(0))  # pylint: disable=not-callable
+        self.register_buffer("queue", torch.zeros(queue_size, feat_len))
+        self.register_buffer("tail", torch.tensor(0))  # pylint: disable=not-callable
 
     def forward(self, feats, pid_labels):
         score = UnlabeledMatching.apply(feats, pid_labels, self.queue, self.tail)

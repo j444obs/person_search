@@ -19,12 +19,12 @@ class PSDB(Dataset):
         self.db_name = db_name
         self.root_dir = root_dir if root_dir else osp.join(cfg.DATA_DIR, "dataset")
         self.data_path = osp.join(self.root_dir, "Image", "SSM")
-        self.classes = ['background', 'person']
+        self.classes = ["background", "person"]
         self.image_index = self.load_image_index()
         self.roidb = self.load_roidb()
-        if db_name == 'psdb_test':
+        if db_name == "psdb_test":
             self.probes = self.load_probes()
-        if db_name == 'psdb_train' and cfg.TRAIN.USE_FLIPPED:
+        if db_name == "psdb_train" and cfg.TRAIN.USE_FLIPPED:
             self.append_flipped_images()
 
     @property
@@ -36,9 +36,11 @@ class PSDB(Dataset):
 
     def __getitem__(self, index):
         blob = get_minibatch([self.roidb[index]])
-        return (torch.from_numpy(blob["data"]),
-                torch.from_numpy(blob["im_info"]),
-                torch.from_numpy(blob["gt_boxes"]))
+        return (
+            torch.from_numpy(blob["data"]),
+            torch.from_numpy(blob["im_info"]),
+            torch.from_numpy(blob["gt_boxes"]),
+        )
 
     def image_path_at(self, i):
         image_path = osp.join(self.data_path, self.image_index[i])

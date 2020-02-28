@@ -4,7 +4,6 @@ from torch.autograd import Function
 
 
 class LabeledMatching(Function):
-
     @staticmethod
     def forward(ctx, feats, pid_labels, lookup_table, momentum=0.5):
         # The lookup_table can't be saved with ctx.save_for_backward(), as we would
@@ -41,7 +40,7 @@ class LabeledMatchingLayer(nn.Module):
         super(LabeledMatchingLayer, self).__init__()
         self.num_classes = num_classes
         self.feat_len = feat_len
-        self.register_buffer('lookup_table', torch.zeros(num_classes, feat_len))
+        self.register_buffer("lookup_table", torch.zeros(num_classes, feat_len))
 
     def forward(self, feats, pid_labels):
         assert feats.size(1) == self.feat_len, "Feature length does not match."

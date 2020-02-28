@@ -90,8 +90,9 @@ def evaluate_search(psdb, gallery_det, gallery_feat, probe_feat, det_thresh=0.5,
 
     use_full_set = gallery_size == -1
     fname = "TestG{}".format(gallery_size if not use_full_set else 50)
-    protoc = loadmat(osp.join(psdb.root_dir, "annotation/test/train_test",
-                              fname + ".mat"))[fname].squeeze()
+    protoc = loadmat(osp.join(psdb.root_dir, "annotation/test/train_test", fname + ".mat"))[
+        fname
+    ].squeeze()
 
     # mapping from gallery image to (det, feat)
     name_to_det_feat = {}

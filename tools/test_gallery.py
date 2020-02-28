@@ -29,12 +29,13 @@ def im_detect(net, im):
     assert len(im_scales) == 1, "Only single-image batch implemented"
 
     blobs = {
-        'data': im_blob,
-        'im_info': np.array([[im_blob.shape[2], im_blob.shape[3], im_scales[0]]], dtype=np.float32)
+        "data": im_blob,
+        "im_info": np.array([[im_blob.shape[2], im_blob.shape[3], im_scales[0]]], dtype=np.float32),
     }
 
-    pid_prob, bbox_pred, feat, _, _, _, _, _ = net(torch.from_numpy(blobs['data']).cuda(),
-                                                   torch.from_numpy(blobs['im_info']).cuda(), 0)
+    pid_prob, bbox_pred, feat, _, _, _, _, _ = net(
+        torch.from_numpy(blobs["data"]).cuda(), torch.from_numpy(blobs["im_info"]).cuda(), 0
+    )
     pid_prob = pid_prob.detach().cpu().numpy()
     bbox_pred = bbox_pred.detach().cpu().numpy()
     feat = feat.detach().cpu().numpy()
@@ -46,7 +47,7 @@ def im_detect(net, im):
     # the first column of the pid_prob is the non-person box score
     scores = pid_prob[:, 0]
     scores = scores[:, np.newaxis]
-    scores = np.hstack([scores, 1. - scores])
+    scores = np.hstack([scores, 1.0 - scores])
 
     if cfg.TEST.BBOX_REG:
         # Apply bounding-box regression deltas
@@ -64,7 +65,7 @@ def im_detect(net, im):
         # Simply repeat the boxes, once for each class
         boxes = np.tile(boxes, (1, scores.shape[1]))
 
-    features = {'feat' : feat.copy()}
+    features = {"feat": feat.copy()}
 
     return boxes, scores, features
 
@@ -78,13 +79,17 @@ def vis_detections(im, class_name, dets, thresh=0.3):
         if score > thresh:
             plt.cla()
             plt.imshow(im)
-            plt.gca().add_patch(plt.Rectangle((bbox[0], bbox[1]),
-                                              bbox[2] - bbox[0],
-                                              bbox[3] - bbox[1],
-                                              fill=False,
-                                              edgecolor='g',
-                                              linewidth=3))
-            plt.title('{}  {:.3f}'.format(class_name, score))
+            plt.gca().add_patch(
+                plt.Rectangle(
+                    (bbox[0], bbox[1]),
+                    bbox[2] - bbox[0],
+                    bbox[3] - bbox[1],
+                    fill=False,
+                    edgecolor="g",
+                    linewidth=3,
+                )
+            )
+            plt.title("{}  {:.3f}".format(class_name, score))
             plt.show()
 
 
@@ -98,7 +103,7 @@ def detect_and_exfeat(net, imdb, thresh=0.05, vis=False):
     #    (x1, y1, x2, y2, score)
     #    all_features[blob][image] = N x D array of features
     all_boxes = [0 for _ in range(num_images)]
-    all_features = {'feat': [0 for _ in range(num_images)]}
+    all_features = {"feat": [0 for _ in range(num_images)]}
 
     for i in tqdm(range(num_images)):
         im = cv2.imread(imdb.image_path_at(i))
@@ -109,15 +114,21 @@ def detect_and_exfeat(net, imdb, thresh=0.05, vis=False):
         j = 1  # only consider j = 1 (foreground class)
         inds = np.where(scores[:, j] > thresh)[0]
         cls_scores = scores[inds, j]
-        cls_boxes = boxes[inds, j * 4:(j + 1) * 4].astype(np.float32)
+        cls_boxes = boxes[inds, j * 4 : (j + 1) * 4].astype(np.float32)
         cls_dets = np.hstack((cls_boxes, cls_scores[:, np.newaxis])).astype(np.float32, copy=False)
-        keep = nms(torch.from_numpy(cls_boxes).cuda(),
-                   torch.from_numpy(cls_scores).cuda(),
-                   cfg.TEST.NMS).cpu().numpy()
+        keep = (
+            nms(
+                torch.from_numpy(cls_boxes).cuda(),
+                torch.from_numpy(cls_scores).cuda(),
+                cfg.TEST.NMS,
+            )
+            .cpu()
+            .numpy()
+        )
         all_boxes[i] = cls_dets[keep]
         # for blob, feat in feat_dic.iteritems():
         #     all_features[blob][i] = feat[inds][keep]
-        all_features['feat'][i] = feat_dic['feat'][inds][keep]
+        all_features["feat"][i] = feat_dic["feat"][inds][keep]
 
         if vis:
             vis_detections(im, imdb.classes[j], all_boxes[i])
@@ -158,7 +169,7 @@ def detect_and_exfeat(net, imdb, thresh=0.05, vis=False):
 #     return all_boxes, all_features
 
 
-def demo_detect(net, filename, blob_name='feat', threshold=0.5):
+def demo_detect(net, filename, blob_name="feat", threshold=0.5):
     """Detect persons in a gallery image and extract their features
 
     Arguments:
@@ -177,11 +188,9 @@ def demo_detect(net, filename, blob_name='feat', threshold=0.5):
     j = 1  # only consider j = 1 (foreground class)
     inds = np.where(scores[:, j] > threshold)[0]
     cls_scores = scores[inds, j]
-    cls_boxes = boxes[inds, j * 4:(j + 1) * 4]
+    cls_boxes = boxes[inds, j * 4 : (j + 1) * 4]
     boxes = np.hstack((cls_boxes, cls_scores[:, np.newaxis])).astype(np.float32)
-    keep = nms(torch.from_numpy(cls_boxes),
-               torch.from_numpy(cls_scores),
-               cfg.TEST.NMS)
+    keep = nms(torch.from_numpy(cls_boxes), torch.from_numpy(cls_scores), cfg.TEST.NMS)
 
     boxes = boxes[keep]
     features = feat_dic[blob_name][inds][keep]

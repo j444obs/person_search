@@ -38,7 +38,7 @@ class RPN(nn.Module):
         return x
 
     def forward(self, base_feat, im_info, gt_boxes):
-        assert base_feat.size(0) == 1, 'Single batch only.'
+        assert base_feat.size(0) == 1, "Single batch only."
 
         # Return feature map after conv-relu layer
         rpn_conv = F.relu(self.rpn_conv(base_feat), inplace=True)
@@ -70,11 +70,13 @@ class RPN(nn.Module):
 
             # Bounding box regression loss
             rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights = rpn_data[1:]
-            self.rpn_loss_bbox = smooth_l1_loss(rpn_bbox_pred,
-                                                rpn_bbox_targets,
-                                                rpn_bbox_inside_weights,
-                                                rpn_bbox_outside_weights,
-                                                sigma=3,
-                                                dim=[1, 2, 3])
+            self.rpn_loss_bbox = smooth_l1_loss(
+                rpn_bbox_pred,
+                rpn_bbox_targets,
+                rpn_bbox_inside_weights,
+                rpn_bbox_outside_weights,
+                sigma=3,
+                dim=[1, 2, 3],
+            )
 
         return rois, self.rpn_loss_cls, self.rpn_loss_bbox

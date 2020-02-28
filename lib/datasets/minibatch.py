@@ -26,7 +26,7 @@ def get_minibatch(roidb):
     im_blob, im_scales = get_image_blob(roidb, random_scale_inds)
 
     # GT boxes: (x1, y1, x2, y2, class, pid)
-    gt_boxes = np.empty((roidb[0]['gt_boxes'].shape[0], 6), dtype=np.float32)
+    gt_boxes = np.empty((roidb[0]["gt_boxes"].shape[0], 6), dtype=np.float32)
     gt_boxes[:, 0:4] = roidb[0]["gt_boxes"] * im_scales[0]
     gt_boxes[:, 4] = 1
     gt_boxes[:, 5] = roidb[0]["gt_pids"]
@@ -34,7 +34,7 @@ def get_minibatch(roidb):
     blobs = {
         "data": im_blob,
         "gt_boxes": gt_boxes,
-        "im_info": np.array([[im_blob.shape[2], im_blob.shape[3], im_scales[0]]], dtype=np.float32)
+        "im_info": np.array([[im_blob.shape[2], im_blob.shape[3], im_scales[0]]], dtype=np.float32),
     }
 
     return blobs
@@ -70,7 +70,7 @@ def im_list_to_blob(ims):
     blob = np.zeros((num_images, max_shape[0], max_shape[1], 3), dtype=np.float32)
     for i in range(num_images):
         im = ims[i]
-        blob[i, 0:im.shape[0], 0:im.shape[1], :] = im
+        blob[i, 0 : im.shape[0], 0 : im.shape[1], :] = im
 
     # Move channels (axis 3) to axis 1
     # Axis order will become: (batch elem, channel, height, width)

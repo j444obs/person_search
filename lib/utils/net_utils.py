@@ -60,13 +60,20 @@ def clip_boxes(boxes, im_shape):
 def bbox_overlaps(boxes, query_boxes):
     """Compute the overlaps between anchors and gt_boxes."""
     box_areas = (boxes[:, 2] - boxes[:, 0] + 1) * (boxes[:, 3] - boxes[:, 1] + 1)
-    query_areas = ((query_boxes[:, 2] - query_boxes[:, 0] + 1) *
-                   (query_boxes[:, 3] - query_boxes[:, 1] + 1))
+    query_areas = (query_boxes[:, 2] - query_boxes[:, 0] + 1) * (
+        query_boxes[:, 3] - query_boxes[:, 1] + 1
+    )
 
-    iw = (torch.min(boxes[:, 2:3], query_boxes[:, 2:3].t()) -
-          torch.max(boxes[:, 0:1], query_boxes[:, 0:1].t()) + 1).clamp(min=0)
-    ih = (torch.min(boxes[:, 3:4], query_boxes[:, 3:4].t()) -
-          torch.max(boxes[:, 1:2], query_boxes[:, 1:2].t()) + 1).clamp(min=0)
+    iw = (
+        torch.min(boxes[:, 2:3], query_boxes[:, 2:3].t())
+        - torch.max(boxes[:, 0:1], query_boxes[:, 0:1].t())
+        + 1
+    ).clamp(min=0)
+    ih = (
+        torch.min(boxes[:, 3:4], query_boxes[:, 3:4].t())
+        - torch.max(boxes[:, 1:2], query_boxes[:, 1:2].t())
+        + 1
+    ).clamp(min=0)
     ua = box_areas.view(-1, 1) + query_areas.view(1, -1) - iw * ih
     overlaps = iw * ih / ua
 
@@ -81,16 +88,17 @@ def filter_boxes(boxes, min_size):
     return keep
 
 
-def smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights, sigma=1.0, dim=None):
-    if dim is None:
-        dim = [1]
+def smooth_l1_loss(
+    bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights, sigma=1.0, dim=(1,)
+):
     sigma_2 = sigma ** 2
     box_diff = bbox_pred - bbox_targets
     in_box_diff = bbox_inside_weights * box_diff
     abs_in_box_diff = torch.abs(in_box_diff)
-    smoothL1_sign = (abs_in_box_diff < 1. / sigma_2).detach().float()
-    in_loss_box = torch.pow(in_box_diff, 2) * (sigma_2 / 2.) * smoothL1_sign \
-        + (abs_in_box_diff - (0.5 / sigma_2)) * (1. - smoothL1_sign)
+    smoothL1_sign = (abs_in_box_diff < 1.0 / sigma_2).detach().float()
+    in_loss_box = torch.pow(in_box_diff, 2) * (sigma_2 / 2.0) * smoothL1_sign + (
+        abs_in_box_diff - (0.5 / sigma_2)
+    ) * (1.0 - smoothL1_sign)
     out_loss_box = bbox_outside_weights * in_loss_box
     loss_box = out_loss_box
     for i in sorted(dim, reverse=True):

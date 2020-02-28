@@ -42,9 +42,9 @@ class ProposalLayer(nn.Module):
         # take after_nms_topN proposals after NMS
         # return the top proposals
 
-        assert scores.size(0) == 1, 'Single batch only.'
+        assert scores.size(0) == 1, "Single batch only."
 
-        cfg_key = 'TRAIN' if self.training else 'TEST'
+        cfg_key = "TRAIN" if self.training else "TEST"
         pre_nms_topN = cfg[cfg_key].RPN_PRE_NMS_TOP_N
         post_nms_topN = cfg[cfg_key].RPN_POST_NMS_TOP_N
         nms_thresh = cfg[cfg_key].RPN_NMS_THRESH
@@ -52,7 +52,7 @@ class ProposalLayer(nn.Module):
 
         # the first set of num_anchors channels are bg probs
         # the second set are the fg probs, which we want
-        scores = scores[:, self.num_anchors:, :, :]
+        scores = scores[:, self.num_anchors :, :, :]
         im_info = im_info[0]
 
         # 1. Generate proposals from bbox deltas and shifted anchors
@@ -63,8 +63,9 @@ class ProposalLayer(nn.Module):
         shift_y = torch.arange(0, height) * self.feat_stride
         shift_y, shift_x = torch.meshgrid(shift_y, shift_x)
         shift_x, shift_y = shift_x.contiguous(), shift_y.contiguous()
-        shifts = torch.stack((shift_x.view(-1), shift_y.view(-1),
-                              shift_x.view(-1), shift_y.view(-1)), dim=1)
+        shifts = torch.stack(
+            (shift_x.view(-1), shift_y.view(-1), shift_x.view(-1), shift_y.view(-1)), dim=1
+        )
         shifts = shifts.type_as(scores)
 
         # Enumerate all shifted anchors:
@@ -107,8 +108,9 @@ class ProposalLayer(nn.Module):
 
         # 4. Sort all (proposal, score) pairs by score from highest to lowest
         # 5. Take top pre_nms_topN (e.g. 6000)
-        if 'DEBUG' in os.environ:
+        if "DEBUG" in os.environ:
             import numpy as np
+
             order = np.argsort(scores.view(-1).cpu()).numpy()[::-1]
             order = torch.from_numpy(order.copy())
         else:
@@ -121,7 +123,7 @@ class ProposalLayer(nn.Module):
         # 6. Apply nms (e.g. threshold = 0.7)
         # 7. Take after_nms_topN (e.g. 300)
         # 8. Return the top proposals
-        if 'DEBUG' in os.environ:
+        if "DEBUG" in os.environ:
             keep = torch.arange(proposals.shape[0])
         else:
             keep = nms(proposals, scores.squeeze(1), nms_thresh)

@@ -39,10 +39,15 @@ def mkanchors(ws, hs, x_ctr, y_ctr):
     """
     ws.unsqueeze_(1)
     hs.unsqueeze_(1)
-    anchors = torch.cat((x_ctr - 0.5 * (ws - 1),
-                         y_ctr - 0.5 * (hs - 1),
-                         x_ctr + 0.5 * (ws - 1),
-                         y_ctr + 0.5 * (hs - 1)), dim=1)
+    anchors = torch.cat(
+        (
+            x_ctr - 0.5 * (ws - 1),
+            y_ctr - 0.5 * (hs - 1),
+            x_ctr + 0.5 * (ws - 1),
+            y_ctr + 0.5 * (hs - 1),
+        ),
+        dim=1,
+    )
     return anchors
 
 

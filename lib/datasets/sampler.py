@@ -7,7 +7,6 @@ from utils.config import cfg
 
 
 class PSSampler(Sampler):
-
     def __init__(self, dataset):
         Sampler.__init__(self, dataset)
         self.roidb = dataset.roidb
@@ -25,7 +24,7 @@ class PSSampler(Sampler):
             row_perm = np.random.permutation(np.arange(inds.shape[0]))
             inds = np.reshape(inds[row_perm, :], (-1,))
             perm = inds
-            if 'DEBUG' in os.environ:
+            if "DEBUG" in os.environ:
                 perm = np.arange(len(self.roidb))
         else:
             perm = np.random.permutation(np.arange(len(self.roidb)))

@@ -36,7 +36,7 @@ class AnchorTargetLayer(nn.Module):
         # measure the overlaps between anchors and gt_boxes
         # assign label, bbox_targets, bbox_inside_weights, bbox_outside_weights for each anchor
 
-        assert rpn_cls_score.size(0) == 1, 'Single batch only.'
+        assert rpn_cls_score.size(0) == 1, "Single batch only."
 
         height, width = rpn_cls_score.shape[-2:]
         im_info = im_info[0]
@@ -46,8 +46,9 @@ class AnchorTargetLayer(nn.Module):
         shift_y = torch.arange(0, height) * self.feat_stride
         shift_y, shift_x = torch.meshgrid(shift_y, shift_x)
         shift_x, shift_y = shift_x.contiguous(), shift_y.contiguous()
-        shifts = torch.stack((shift_x.view(-1), shift_y.view(-1),
-                              shift_x.view(-1), shift_y.view(-1)), dim=1)
+        shifts = torch.stack(
+            (shift_x.view(-1), shift_y.view(-1), shift_x.view(-1), shift_y.view(-1)), dim=1
+        )
         shifts = shifts.type_as(gt_boxes)
 
         # Enumerate all shifted anchors:
@@ -60,19 +61,24 @@ class AnchorTargetLayer(nn.Module):
         anchors = anchors.view(K * A, 4)
 
         # only keep anchors inside the image
-        inds_inside = torch.nonzero((anchors[:, 0] >= 0) &
-                                    (anchors[:, 1] >= 0) &
-                                    (anchors[:, 2] < im_info[1]) &
-                                    (anchors[:, 3] < im_info[0]))[:, 0]
+        inds_inside = torch.nonzero(
+            (anchors[:, 0] >= 0)
+            & (anchors[:, 1] >= 0)
+            & (anchors[:, 2] < im_info[1])
+            & (anchors[:, 3] < im_info[0])
+        )[:, 0]
         anchors = anchors[inds_inside]
 
         overlaps = bbox_overlaps(anchors, gt_boxes)
 
-        if 'DEBUG' in os.environ:
+        if "DEBUG" in os.environ:
             import numpy as np
+
             argmax_overlaps = np.argmax(overlaps.cpu(), axis=1)
             max_overlaps = torch.from_numpy(np.max(overlaps.cpu().numpy(), axis=1))
-            gt_max_overlaps = torch.from_numpy(np.max(overlaps.cpu().numpy(), axis=0)).type_as(overlaps)
+            gt_max_overlaps = torch.from_numpy(np.max(overlaps.cpu().numpy(), axis=0)).type_as(
+                overlaps
+            )
             gt_argmax_overlaps = np.nonzero(overlaps == gt_max_overlaps)[:, 0]
         else:
             argmax_overlaps = overlaps.argmax(dim=1)
@@ -97,8 +103,8 @@ class AnchorTargetLayer(nn.Module):
         num_fg = int(cfg.TRAIN.RPN_FG_FRACTION * cfg.TRAIN.RPN_BATCHSIZE)
         fg_inds = torch.nonzero(labels == 1)[:, 0]
         if len(fg_inds) > num_fg:
-            if 'DEBUG' in os.environ:
-                disable_inds = fg_inds[:len(fg_inds) - num_fg]
+            if "DEBUG" in os.environ:
+                disable_inds = fg_inds[: len(fg_inds) - num_fg]
             else:
                 disable_inds = torch_rand_choice(fg_inds, len(fg_inds) - num_fg)
             labels[disable_inds] = -1
@@ -107,8 +113,8 @@ class AnchorTargetLayer(nn.Module):
         num_bg = cfg.TRAIN.RPN_BATCHSIZE - torch.sum(labels == 1)
         bg_inds = torch.nonzero(labels == 0)[:, 0]
         if len(bg_inds) > num_bg:
-            if 'DEBUG' in os.environ:
-                disable_inds = bg_inds[:len(bg_inds) - num_bg]
+            if "DEBUG" in os.environ:
+                disable_inds = bg_inds[: len(bg_inds) - num_bg]
             else:
                 disable_inds = torch_rand_choice(bg_inds, len(bg_inds) - num_bg)
             labels[disable_inds] = -1
@@ -126,7 +132,7 @@ class AnchorTargetLayer(nn.Module):
 
         def map2origin(data, count=K * A, inds=inds_inside, fill=0):
             """Map to original set."""
-            shape = (count, ) + data.shape[1:]
+            shape = (count,) + data.shape[1:]
             origin = torch.empty(shape).fill_(fill).type_as(gt_boxes)
             origin[inds] = data
             return origin
@@ -140,6 +146,8 @@ class AnchorTargetLayer(nn.Module):
         labels = labels.contiguous().view(1, 1, A * height, width)
         bbox_targets = bbox_targets.view(1, height, width, A * 4).permute(0, 3, 1, 2)
         bbox_inside_weights = bbox_inside_weights.view(1, height, width, A * 4).permute(0, 3, 1, 2)
-        bbox_outside_weights = bbox_outside_weights.view(1, height, width, A * 4).permute(0, 3, 1, 2)
+        bbox_outside_weights = bbox_outside_weights.view(1, height, width, A * 4).permute(
+            0, 3, 1, 2
+        )
 
         return labels, bbox_targets, bbox_inside_weights, bbox_outside_weights

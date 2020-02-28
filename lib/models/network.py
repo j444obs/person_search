@@ -19,7 +19,7 @@ class Network(nn.Module):
     def __init__(self, pretrained_model=None):
         super(Network, self).__init__()
         rpn_depth = 1024  # Depth of the feature map fed into RPN
-        num_classes = 2   # Background and foreground
+        num_classes = 2  # Background and foreground
 
         # Extracting feature layer
         self.base_feat_layer = BaseFeatLayer()
@@ -50,7 +50,7 @@ class Network(nn.Module):
         self.frozen_blocks()
 
     def forward(self, im_data, im_info, gt_boxes, is_prob=False, rois=None):
-        assert im_data.size(0) == 1, 'Single batch only.'
+        assert im_data.size(0) == 1, "Single batch only."
 
         # Extract basic feature from image data
         base_feat = self.base_feat_layer(im_data)
@@ -64,15 +64,21 @@ class Network(nn.Module):
 
         if self.training:
             # Sample 128 rois and assign them labels and bbox regression targets
-            roi_data = self.proposal_target_layer(self.rois, gt_boxes)
-            self.rois, rois_label, pid_label, rois_target, rois_inside_ws, rois_outside_ws = roi_data
+            (
+                self.rois,
+                rois_label,
+                pid_label,
+                rois_target,
+                rois_inside_ws,
+                rois_outside_ws,
+            ) = self.proposal_target_layer(self.rois, gt_boxes)
         else:
             rois_label, pid_label, rois_target, rois_inside_ws, rois_outside_ws = [None] * 5
 
         # Do roi pooling based on region proposals
-        if cfg.POOLING_MODE == 'align':
+        if cfg.POOLING_MODE == "align":
             pooled_feat = self.roi_align(base_feat, self.rois)
-        elif cfg.POOLING_MODE == 'pool':
+        elif cfg.POOLING_MODE == "pool":
             pooled_feat = self.roi_pool(base_feat, self.rois)
         else:
             raise NotImplementedError("Only support roi_align and roi_pool.")
@@ -90,10 +96,7 @@ class Network(nn.Module):
 
         if self.training:
             loss_cls = F.cross_entropy(cls_score, rois_label)
-            loss_bbox = smooth_l1_loss(bbox_pred,
-                                       rois_target,
-                                       rois_inside_ws,
-                                       rois_outside_ws)
+            loss_bbox = smooth_l1_loss(bbox_pred, rois_target, rois_inside_ws, rois_outside_ws)
 
             # OIM loss
             labeled_matching_scores, id_labels = self.labeled_matching_layer(feat, pid_label)
@@ -113,7 +116,7 @@ class Network(nn.Module):
 
         def set_bn_fix(m):
             classname = m.__class__.__name__
-            if classname.find('BatchNorm') != -1:
+            if classname.find("BatchNorm") != -1:
                 for p in m.parameters():
                     p.requires_grad = False
 
@@ -127,7 +130,7 @@ class Network(nn.Module):
             # Set all bn layers in base_feat_layer to eval mode
             def set_bn_eval(m):
                 classname = m.__class__.__name__
-                if classname.find('BatchNorm') != -1:
+                if classname.find("BatchNorm") != -1:
                     m.eval()
 
             self.base_feat_layer.apply(set_bn_eval)

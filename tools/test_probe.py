@@ -1,6 +1,6 @@
-import torch
 import cv2
 import numpy as np
+import torch
 from tqdm import tqdm
 
 from test_utils import get_image_blob, get_rois_blob
@@ -21,17 +21,21 @@ def im_exfeat(net, im, roi):
     im_blob, im_scales = get_image_blob(im)
 
     blobs = {
-        'data': im_blob,
-        'im_info': np.array([[im_blob.shape[2], im_blob.shape[3], im_scales[0]]], dtype=np.float32),
-        'rois': get_rois_blob(roi, im_scales),
+        "data": im_blob,
+        "im_info": np.array([[im_blob.shape[2], im_blob.shape[3], im_scales[0]]], dtype=np.float32),
+        "rois": get_rois_blob(roi, im_scales),
     }
 
-    _, _, feat, _, _, _, _, _ = net(torch.from_numpy(blobs['data']).cuda(),
-                                    torch.from_numpy(blobs['im_info']).cuda(),
-                                    0, is_prob=True, rois=torch.from_numpy(blobs['rois']).cuda())
+    _, _, feat, _, _, _, _, _ = net(
+        torch.from_numpy(blobs["data"]).cuda(),
+        torch.from_numpy(blobs["im_info"]).cuda(),
+        0,
+        is_prob=True,
+        rois=torch.from_numpy(blobs["rois"]).cuda(),
+    )
     feat = feat.detach().cpu().numpy()
 
-    features = {'feat': feat.copy()}
+    features = {"feat": feat.copy()}
 
     return features
 
@@ -40,7 +44,7 @@ def exfeat(net, probes):
     num_images = len(probes)
 
     # all_features[blob] = num_images x D array of features
-    all_features = {'feat': [0 for _ in range(num_images)]}
+    all_features = {"feat": [0 for _ in range(num_images)]}
 
     for i in tqdm(range(num_images)):
         im_name, roi = probes[i]
@@ -56,7 +60,7 @@ def exfeat(net, probes):
     return all_features
 
 
-def demo_exfeat(net, filename, roi, blob_name='feat'):
+def demo_exfeat(net, filename, roi, blob_name="feat"):
     """Extract feature for a probe person ROI in an image.
 
     Arguments:

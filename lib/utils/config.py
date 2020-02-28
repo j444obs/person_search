@@ -164,16 +164,16 @@ cfg.PIXEL_MEANS = np.array([[[102.9801, 115.9465, 122.7717]]])
 cfg.RNG_SEED = 3
 
 # Root directory of project
-cfg.ROOT_DIR = osp.abspath(osp.join(osp.dirname(__file__), '..', '..'))
+cfg.ROOT_DIR = osp.abspath(osp.join(osp.dirname(__file__), "..", ".."))
 
 # Data directory
-cfg.DATA_DIR = osp.abspath(osp.join(cfg.ROOT_DIR, 'data'))
+cfg.DATA_DIR = osp.abspath(osp.join(cfg.ROOT_DIR, "data"))
 
 # Default GPU device id
 cfg.GPU_ID = 0
 
 # Default pooling mode
-cfg.POOLING_MODE = 'pool'
+cfg.POOLING_MODE = "pool"
 
 # Size of the pooled region after RoI pooling
 cfg.POOLING_SIZE = 14
@@ -185,7 +185,9 @@ cfg.ANCHOR_SCALES = [8, 16, 32]
 cfg.ANCHOR_RATIOS = [0.5, 1, 2]
 
 # Feature stride for RPN
-cfg.FEAT_STRIDE = [16, ]
+cfg.FEAT_STRIDE = [
+    16,
+]
 
 
 # def get_output_dir(imdb_name, net_name=None):
@@ -209,7 +211,7 @@ def merge_a_into_b(a, b):
     for k, v in a.items():
         # a must specify keys that are in b
         if k not in b:
-            raise KeyError('%s is not a valid config key' % k)
+            raise KeyError("%s is not a valid config key" % k)
 
         # the types must match, too
         old_type = type(b[k])
@@ -217,7 +219,9 @@ def merge_a_into_b(a, b):
             if isinstance(b[k], np.ndarray):
                 v = np.array(v, dtype=b[k].dtype)
             else:
-                raise ValueError('Type mismatch (%s vs. %s) for config key: %s' % (type(b[k]), type(v), k))
+                raise ValueError(
+                    "Type mismatch (%s vs. %s) for config key: %s" % (type(b[k]), type(v), k)
+                )
 
         # recursively merge dicts
         if isinstance(v, edict):
@@ -228,6 +232,6 @@ def merge_a_into_b(a, b):
 
 def cfg_from_file(filename):
     """Load a config file and merge it into the default options."""
-    with open(filename, 'r') as f:
+    with open(filename, "r") as f:
         yaml_cfg = edict(yaml.load(f, Loader=yaml.FullLoader))
     merge_a_into_b(yaml_cfg, cfg)
