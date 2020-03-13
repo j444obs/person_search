@@ -1,14 +1,17 @@
 import argparse
+import logging
 import os
 import os.path as osp
 import random
 import time
 
+import coloredlogs
 import numpy as np
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
+import _init_paths  # noqa: F401
 from datasets.psdb import PSDB
 from datasets.sampler import PSSampler
 from models.network import Network
@@ -16,7 +19,6 @@ from utils.config import cfg, cfg_from_file
 
 
 def parse_args():
-    """Parse input arguments."""
     parser = argparse.ArgumentParser(description="Train a person search network.")
     parser.add_argument(
         "--gpu", default=-1, type=int, help="GPU device id to use. Default: -1, means using CPU"
@@ -25,26 +27,17 @@ def parse_args():
         "--epoch", default=5, type=int, help="Number of epochs to train. Default: 5"
     )
     parser.add_argument(
-        "--weights",
-        default=None,
-        type=str,
-        help="Initialize with pretrained model weights. Default: None",
+        "--weights", help="Initialize with pretrained model weights. Default: None",
     )
     parser.add_argument(
-        "--checkpoint",
-        default=None,
-        type=str,
-        help="Initialize with previous solver state. Default: None",
+        "--checkpoint", help="Initialize with previous solver state. Default: None",
     )
-    parser.add_argument("--cfg", default=None, type=str, help="Optional config file. Default: None")
+    parser.add_argument("--cfg", help="Optional config file. Default: None")
     parser.add_argument(
-        "--data_dir",
-        default=None,
-        type=str,
-        help="The directory that saving experimental data. Default: None",
+        "--data_dir", help="The directory that saving experimental data. Default: None",
     )
     parser.add_argument(
-        "--dataset", default="psdb_train", type=str, help="Dataset to train on. Default: psdb_train"
+        "--dataset", default="psdb_train", help="Dataset to train on. Default: psdb_train"
     )
     parser.add_argument(
         "--rand", action="store_true", help="Do not use a fixed seed. Default: False"
@@ -57,8 +50,9 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
 
-    print("Called with args:")
-    print(args)
+    coloredlogs.install(level="INFO", fmt="%(asctime)s %(filename)s %(levelname)s %(message)s")
+
+    logging.info("Called with args: " + str(args))
 
     if args.cfg:
         cfg_from_file(args.cfg)
@@ -67,7 +61,7 @@ if __name__ == "__main__":
 
     if not args.rand:
         # Fix the random seeds (numpy and pytorch) for reproducibility
-        print("Set to none random mode.")
+        logging.info("Set to none random mode.")
         torch.manual_seed(cfg.RNG_SEED)
         torch.cuda.manual_seed(cfg.RNG_SEED)
         torch.cuda.manual_seed_all(cfg.RNG_SEED)
@@ -82,9 +76,9 @@ if __name__ == "__main__":
         os.makedirs(output_dir)
 
     assert args.dataset in ["psdb_train", "psdb_test"], "Unknown dataset: %s" % args.dataset
-    psdb = PSDB(args.dataset)
-    dataloader = DataLoader(psdb, batch_size=1, sampler=PSSampler(psdb))
-    print("Loaded dataset: %s" % args.dataset)
+    dataset = PSDB(args.dataset)
+    dataloader = DataLoader(dataset, batch_size=1, sampler=PSSampler(dataset))
+    logging.info("Loaded dataset: %s" % args.dataset)
 
     # Set model and optimizer
     if args.weights is None:
@@ -111,8 +105,8 @@ if __name__ == "__main__":
 
     # Training settings
     start_epoch = 0
-    display = 1  # Display the loss every `display` steps
-    lr_decay_by_epoch = True  # True: decay by epoch, otherwise by step
+    display = 20  # Display the loss every `display` steps
+    lr_decay_by_epoch = False  # True: decay by epoch, otherwise by step
     lr_decay_epoch = 4  # Decay the learning rate every `lr_decay_epoch` epochs
     lr_decay_step = 40000  # Decay the learning rate every `lr_decay_step` steps
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=lr_decay_step, gamma=0.1)
@@ -128,11 +122,10 @@ if __name__ == "__main__":
         optimizer.load_state_dict(checkpoint["optimizer"])
         if "scheduler" in checkpoint:
             scheduler.load_state_dict(checkpoint["scheduler"])
-        print("Loaded checkpoint from: %s" % args.checkpoint)
+        logging.info("Loaded checkpoint from: %s" % args.checkpoint)
 
-    # Place the model on cuda device
-    if args.gpu != -1:
-        net.cuda(args.gpu)
+    device = torch.device("cuda:%s" % args.gpu if args.gpu != -1 else "cpu")
+    net.to(device)
 
     # Use tensorboardX to visualize experimental results
     if args.tbX:
@@ -147,6 +140,7 @@ if __name__ == "__main__":
     losses = []
     ave_loss = 0
     smoothed_loss = 0
+    real_steps_per_epoch = int(len(dataloader) / iter_size)
     for epoch in range(start_epoch, args.epoch):
         # Do learning rate decay
         if lr_decay_by_epoch:
@@ -154,22 +148,32 @@ if __name__ == "__main__":
                 for param_group in optimizer.param_groups:
                     param_group["lr"] = 0.1 * param_group["lr"]
 
-        for step, input_data in enumerate(dataloader):
-            data, im_info, gt_boxes = input_data[0][0], input_data[1][0], input_data[2][0]
-            if args.gpu != -1:
-                data = data.cuda(args.gpu)
-                im_info = im_info.cuda(args.gpu)
-                gt_boxes = gt_boxes.cuda(args.gpu)
-
+        for step, data in enumerate(dataloader):
             real_step = int(step / iter_size)
-            _, _, _, rpn_loss_cls, rpn_loss_bbox, loss_cls, loss_bbox, loss_id = net(
-                data, im_info, gt_boxes
+            img = data[0].to(device)
+            img_info = data[1][0].to(device)
+            gt_boxes = data[2][0].to(device)
+
+            total_steps = epoch * real_steps_per_epoch + real_step
+            if total_steps == 50000:
+                save_name = os.path.join(output_dir, "checkpoint_step_50000.pth")
+                save_dict = {
+                    "step": 50000,
+                    "model": net.state_dict(),
+                    "optimizer": optimizer.state_dict(),
+                }
+                if not lr_decay_by_epoch:
+                    save_dict["scheduler" : scheduler.state_dict()]
+                torch.save(save_dict, save_name)
+
+            _, _, _, _, rpn_loss_cls, rpn_loss_bbox, loss_cls, loss_bbox, loss_oim = net(
+                img, img_info, gt_boxes
             )
-            loss_iter = (rpn_loss_cls + rpn_loss_bbox + loss_cls + loss_bbox + loss_id) / iter_size
+            loss_iter = (rpn_loss_cls + rpn_loss_bbox + loss_cls + loss_bbox + loss_oim) / iter_size
             loss += loss_iter
             loss_iter.backward()
-            accumulated_step += 1
 
+            accumulated_step += 1
             if accumulated_step == iter_size:
                 optimizer.step()
                 optimizer.zero_grad()
@@ -200,21 +204,20 @@ if __name__ == "__main__":
                         display_loss = ave_loss / display if real_step > 0 else ave_loss
                         ave_loss = 0
 
-                    real_steps_per_epoch = int(len(dataloader) / iter_size)
-                    print("-----------------------------------------------------------------")
-                    print(
+                    logging.info("----------------------------------------------------------------")
+                    logging.info(
                         "Epoch: [%s / %s], iteration [%s / %s], loss: %.4f"
                         % (epoch, args.epoch - 1, real_step, real_steps_per_epoch - 1, display_loss)
                     )
-                    print("Time cost: %.2f seconds" % (time.time() - start))
-                    print("Learning rate: %s" % optimizer.param_groups[0]["lr"])
-                    print("The %s-th iteration loss:" % real_step)
-                    print(
+                    logging.info("Time cost: %.2f seconds" % (time.time() - start))
+                    logging.info("Learning rate: %s" % optimizer.param_groups[0]["lr"])
+                    logging.info("The %s-th iteration loss:" % real_step)
+                    logging.info(
                         "  rpn_loss_cls: %.4f, rpn_loss_bbox: %.4f" % (rpn_loss_cls, rpn_loss_bbox)
                     )
-                    print(
-                        "  loss_cls: %.4f, loss_bbox: %.4f, loss_id: %.4f"
-                        % (loss_cls, loss_bbox, loss_id)
+                    logging.info(
+                        "  loss_cls: %.4f, loss_bbox: %.4f, loss_oim: %.4f"
+                        % (loss_cls, loss_bbox, loss_oim)
                     )
 
                     start = time.time()
@@ -226,14 +229,14 @@ if __name__ == "__main__":
                             "rpn_loss_bbox": rpn_loss_bbox,
                             "loss_cls": loss_cls,
                             "loss_bbox": loss_bbox,
-                            "loss_id": loss_id,
+                            "loss_oim": loss_oim,
                         }
                         logger.add_scalars(
                             "Train/Loss", log_info, epoch * real_steps_per_epoch + real_step
                         )
 
         # Save checkpoint every epoch
-        save_name = os.path.join(output_dir, "resnet50_epoch_%s.pth" % epoch)
+        save_name = os.path.join(output_dir, "checkpoint_epoch_%s.pth" % epoch)
         save_dict = {"epoch": epoch, "model": net.state_dict(), "optimizer": optimizer.state_dict()}
         if not lr_decay_by_epoch:
             save_dict["scheduler" : scheduler.state_dict()]

@@ -1,3 +1,4 @@
+import logging
 import os.path as osp
 
 import numpy as np
@@ -15,16 +16,16 @@ def compute_iou(a, b):
     return inter * 1.0 / union
 
 
-def evaluate_detections(psdb, gallery_det, det_thresh=0.5, iou_thresh=0.5, labeled_only=False):
+def evaluate_detections(dataset, gallery_det, threshold=0.5, iou_thresh=0.5, labeled_only=False):
     """
     gallery_det (list of ndarray): n_det x [x1, x2, y1, y2, score] per image
-    det_thresh (float): filter out gallery detections whose scores below this
+    threshold (float): filter out gallery detections whose scores below this
     iou_thresh (float): treat as true positive if IoU is above this threshold
     labeled_only (bool): filter out unlabeled background people
     """
-    assert psdb.num_images == len(gallery_det)
+    assert dataset.num_images == len(gallery_det)
 
-    roidb = psdb.roidb
+    roidb = dataset.roidb
     y_true, y_score = [], []
     count_gt, count_tp = 0, 0
     for gt, det in zip(roidb, gallery_det):
@@ -35,7 +36,7 @@ def evaluate_detections(psdb, gallery_det, det_thresh=0.5, iou_thresh=0.5, label
                 continue
             gt_boxes = gt_boxes[inds]
         det = np.asarray(det)
-        inds = np.where(det[:, 4].ravel() >= det_thresh)[0]
+        inds = np.where(det[:, 4].ravel() >= threshold)[0]
         det = det[inds]
         num_gt = gt_boxes.shape[0]
         num_det = det.shape[0]
@@ -68,45 +69,48 @@ def evaluate_detections(psdb, gallery_det, det_thresh=0.5, iou_thresh=0.5, label
     det_rate = count_tp * 1.0 / count_gt
     ap = average_precision_score(y_true, y_score) * det_rate
 
-    print("%s detection:" % ("Labeled only" if labeled_only else "All"))
-    print("  Recall = {:.2%}".format(det_rate))
+    logging.info("{} detection:".format("Labeled only" if labeled_only else "All"))
+    logging.info("  Recall = {:.2%}".format(det_rate))
     if not labeled_only:
-        print("  AP = {:.2%}".format(ap))
+        logging.info("  AP = {:.2%}".format(ap))
 
 
-def evaluate_search(psdb, gallery_det, gallery_feat, probe_feat, det_thresh=0.5, gallery_size=100):
+def evaluate_search(
+    dataset, gallery_det, gallery_feat, probe_feat, threshold=0.5, gallery_size=100
+):
     """
     gallery_det (list of ndarray): n_det x [x1, x2, y1, y2, score] per image
     gallery_feat (list of ndarray): n_det x D features per image
     probe_feat (list of ndarray): D dimensional features per probe image
-    det_thresh (float): filter out gallery detections whose scores below this
+    threshold (float): filter out gallery detections whose scores below this
     gallery_size (int): gallery size [-1, 50, 100, 500, 1000, 2000, 4000]
                         -1 for using full set
     dump_json (str): Path to save the results as a JSON file or None
     """
-    assert psdb.num_images == len(gallery_det)
-    assert psdb.num_images == len(gallery_feat)
-    assert len(psdb.probes) == len(probe_feat)
+    assert dataset.num_images == len(gallery_det)
+    assert dataset.num_images == len(gallery_feat)
+    assert len(dataset.probes) == len(probe_feat)
 
+    # TODO: support evaluation on training split
     use_full_set = gallery_size == -1
     fname = "TestG{}".format(gallery_size if not use_full_set else 50)
-    protoc = loadmat(osp.join(psdb.root_dir, "annotation/test/train_test", fname + ".mat"))[
+    protoc = loadmat(osp.join(dataset.root_dir, "annotation/test/train_test", fname + ".mat"))[
         fname
     ].squeeze()
 
     # mapping from gallery image to (det, feat)
     name_to_det_feat = {}
-    for name, det, feat in zip(psdb.image_index, gallery_det, gallery_feat):
+    for name, det, feat in zip(dataset.image_index, gallery_det, gallery_feat):
         scores = det[:, 4].ravel()
-        inds = np.where(scores >= det_thresh)[0]
+        inds = np.where(scores >= threshold)[0]
         if len(inds) > 0:
             name_to_det_feat[name] = (det[inds], feat[inds])
 
     aps = []
     accs = []
     topk = [1, 5, 10]
-    ret = {"image_root": psdb.data_path, "results": []}
-    for i in range(len(psdb.probes)):
+    ret = {"image_root": dataset.data_path, "results": []}
+    for i in range(len(dataset.probes)):
         y_true, y_score = [], []
         imgs, rois = [], []
         count_gt, count_tp = 0, 0
@@ -156,7 +160,7 @@ def evaluate_search(psdb, gallery_det, gallery_feat, probe_feat, det_thresh=0.5,
             tested.add(gallery_imname)
         # 2. Go through the remaining gallery images if using full set
         if use_full_set:
-            for gallery_imname in psdb.image_index:
+            for gallery_imname in dataset.image_index:
                 if gallery_imname in tested:
                     continue
                 if gallery_imname not in name_to_det_feat:
@@ -203,8 +207,8 @@ def evaluate_search(psdb, gallery_det, gallery_feat, probe_feat, det_thresh=0.5,
             )
         ret["results"].append(new_entry)
 
-    print("Search ranking:")
-    print("  mAP = {:.2%}".format(np.mean(aps)))
+    logging.info("Search ranking:")
+    logging.info("  mAP = {:.2%}".format(np.mean(aps)))
     accs = np.mean(accs, axis=0)
     for i, k in enumerate(topk):
-        print("  Top-{:2d} = {:.2%}".format(k, accs[i]))
+        logging.info("  Top-{:2d} = {:.2%}".format(k, accs[i]))

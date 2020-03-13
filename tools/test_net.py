@@ -1,29 +1,29 @@
 import argparse
+import logging
 import os.path as osp
 
+import coloredlogs
+import cv2
 import torch
+from tqdm import tqdm
 
+import _init_paths  # noqa: F401
 from datasets.psdb import PSDB
-from evaluate import evaluate_detections, evaluate_search
 from models.network import Network
-from test_gallery import detect_and_exfeat
-from test_probe import exfeat
-from utils import pickle, unpickle
 from utils.config import cfg_from_file
+from utils.evaluate import evaluate_detections, evaluate_search
+from utils.utils import pickle, unpickle
 
 
 def parse_args():
-    """Parse input arguments."""
     parser = argparse.ArgumentParser(description="Test the person search network.")
     parser.add_argument(
         "--gpu", default=-1, type=int, help="GPU device id to use. Default: -1, means using CPU"
     )
+    parser.add_argument("--checkpoint", help="The checkpoint to be tested. Default: None")
+    parser.add_argument("--cfg", help="Optional config file. Default: None")
     parser.add_argument(
-        "--checkpoint", default=None, type=str, help="The checkpoint to be tested. Default: None"
-    )
-    parser.add_argument("--cfg", default=None, type=str, help="Optional config file. Default: None")
-    parser.add_argument(
-        "--dataset", default="psdb_test", type=str, help="Dataset to test on. Default: psdb_test"
+        "--dataset", default="psdb_test", help="Dataset to test on. Default: psdb_test"
     )
     parser.add_argument(
         "--eval_only",
@@ -33,43 +33,75 @@ def parse_args():
     return parser.parse_args()
 
 
+def detect_and_exfeat(net, dataset, threshold=0.05):
+    """
+    Detect and extract features for each image in dataset.
+    """
+    num_images = dataset.num_images
+    all_boxes = []
+    all_features = []
+    for i in tqdm(range(num_images)):
+        img = cv2.imread(dataset.image_path_at(i))
+        detection, feat = net.inference(img, threshold=threshold)
+        all_boxes.append(detection.cpu().numpy())
+        all_features.append(feat.cpu().numpy())
+    return all_boxes, all_features
+
+
+def exfeat(net, probes):
+    """
+    Extract the features of given probe RoI.
+    """
+    num_images = len(probes)
+    all_features = []
+    for i in tqdm(range(num_images)):
+        im_name, roi = probes[i]
+        img = cv2.imread(im_name)
+        feat = net.inference(img, roi)
+        all_features.append(feat.cpu().numpy())
+    return all_features
+
+
 if __name__ == "__main__":
     args = parse_args()
 
-    print("Called with args:")
-    print(args)
+    coloredlogs.install(level="INFO", fmt="%(asctime)s %(filename)s %(levelname)s %(message)s")
+
+    logging.info("Called with args: " + str(args))
 
     if args.cfg:
         cfg_from_file(args.cfg)
     if args.checkpoint is None:
         raise KeyError("--checkpoint option must be specified.")
 
-    psdb = PSDB(args.dataset)
+    dataset = PSDB(args.dataset)
+    logging.info("Loaded dataset: %s" % args.dataset)
+
     net = Network()
     checkpoint = torch.load(osp.abspath(args.checkpoint))
     net.load_state_dict(checkpoint["model"])
+    logging.info("Loaded checkpoint from: %s" % args.checkpoint)
     net.eval()
-    if args.gpu != -1:
-        net.cuda(args.gpu)
+    device = torch.device("cuda:%s" % args.gpu if args.gpu != -1 else "cpu")
+    net.to(device)
 
+    save_path = osp.abspath("data/cache")
     if args.eval_only:
-        gboxes = unpickle("gallery_detections.pkl")
-        gfeatures = unpickle("gallery_features.pkl")
-        pfeatures = unpickle("probe_features.pkl")
+        gboxes = unpickle(osp.join(save_path, "gallery_detections.pkl"))
+        gfeatures = unpickle(osp.join(save_path, "gallery_features.pkl"))
+        pfeatures = unpickle(osp.join(save_path, "probe_features.pkl"))
     else:
-        # 1. Detect and extract features from all the gallery images in the imdb
-        gboxes, gfeatures = detect_and_exfeat(net, psdb)
+        # 1. Detect and extract features from all the gallery images in the dataset
+        gboxes, gfeatures = detect_and_exfeat(net, dataset)
 
-        # 2. Only extract features from given probe rois
-        pfeatures = exfeat(net, psdb.probes)
+        # 2. Only extract features of given probe RoI
+        pfeatures = exfeat(net, dataset.probes)
 
-        pickle(gboxes, "gallery_detections.pkl")
-        pickle(gfeatures, "gallery_features.pkl")
-        pickle(pfeatures, "probe_features.pkl")
+        pickle(gboxes, osp.join(save_path, "gallery_detections.pkl"))
+        pickle(gfeatures, osp.join(save_path, "gallery_features.pkl"))
+        pickle(pfeatures, osp.join(save_path, "probe_features.pkl"))
 
     # Evaluate
-    evaluate_detections(psdb, gboxes, det_thresh=0.5)
-    evaluate_detections(psdb, gboxes, det_thresh=0.5, labeled_only=True)
-    evaluate_search(
-        psdb, gboxes, gfeatures["feat"], pfeatures["feat"], det_thresh=0.5, gallery_size=100
-    )
+    evaluate_detections(dataset, gboxes, threshold=0.5)
+    evaluate_detections(dataset, gboxes, threshold=0.5, labeled_only=True)
+    evaluate_search(dataset, gboxes, gfeatures, pfeatures, threshold=0.5, gallery_size=100)

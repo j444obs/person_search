@@ -12,14 +12,13 @@ import torch.nn as nn
 from torchvision.ops import nms
 
 from rpn.generate_anchors import generate_anchors
+from utils.boxes import bbox_transform_inv, clip_boxes
 from utils.config import cfg
-from utils.net_utils import bbox_transform_inv, clip_boxes, filter_boxes
 
 
 class ProposalLayer(nn.Module):
     """
-    Outputs object detection proposals by applying estimated bounding-box
-    transformations to a set of regular boxes (called "anchors").
+    Outputs proposals by applying estimated regression deltas to a set of anchors.
     """
 
     def __init__(self):
@@ -28,21 +27,30 @@ class ProposalLayer(nn.Module):
         self.anchors = generate_anchors()
         self.num_anchors = self.anchors.size(0)
 
-    def forward(self, scores, bbox_deltas, im_info):
+    def forward(self, probs, anchor_deltas, img_info):
+        """
+        Args:
+            probs (Tensor): Classification probability of the anchors.
+            anchor_deltas (Tensor): Anchor regression deltas.
+            img_info (Tensor[3]): (height, width, scale)
+
+        Returns:
+            proposals (Tensor[N, 5]): Predicted region proposals in (0, x1, y1, x2, y2) format.
+                                      0 means these proposals are from the first image in the batch.
+        """
         # Algorithm:
         #
-        # for each (H, W) location i
-        #   generate A anchor boxes centered on cell i
-        #   apply predicted bbox deltas at cell i to each of the A anchors
-        # clip predicted boxes to image
-        # remove predicted boxes with either height or width < threshold
-        # sort all (proposal, score) pairs by score from highest to lowest
-        # take top pre_nms_topN proposals before NMS
-        # apply NMS with threshold 0.7 to remaining proposals
-        # take after_nms_topN proposals after NMS
-        # return the top proposals
+        # For each (H, W) location i:
+        #     Generate A anchors centered on cell i
+        #     Apply predicted anchor regression deltas at cell i to each of the A anchors
+        # Clip predicted boxes to image
+        # Remove predicted boxes with either height or width < threshold
+        # Sort all (proposal, score) pairs by score from highest to lowest
+        # Take top pre_nms_topN proposals before NMS
+        # Apply NMS with threshold 0.7 to remaining proposals
+        # Take after_nms_topN proposals after NMS
 
-        assert scores.size(0) == 1, "Single batch only."
+        assert probs.size(0) == 1, "Single batch only."
 
         cfg_key = "TRAIN" if self.training else "TEST"
         pre_nms_topN = cfg[cfg_key].RPN_PRE_NMS_TOP_N
@@ -50,13 +58,12 @@ class ProposalLayer(nn.Module):
         nms_thresh = cfg[cfg_key].RPN_NMS_THRESH
         min_size = cfg[cfg_key].RPN_MIN_SIZE
 
-        # the first set of num_anchors channels are bg probs
-        # the second set are the fg probs, which we want
-        scores = scores[:, self.num_anchors :, :, :]
-        im_info = im_info[0]
+        # The first set of num_anchors channels are bg probs
+        # The second set are the fg probs, which we want
+        probs = probs[:, self.num_anchors :, :, :]
 
-        # 1. Generate proposals from bbox deltas and shifted anchors
-        height, width = scores.shape[-2:]
+        # 1. Generate proposals from regression deltas and shifted anchors
+        height, width = probs.shape[-2:]
 
         # Enumerate all shifts (NOTE: torch.meshgrid is different from np.meshgrid)
         shift_x = torch.arange(0, width) * self.feat_stride
@@ -66,59 +73,62 @@ class ProposalLayer(nn.Module):
         shifts = torch.stack(
             (shift_x.view(-1), shift_y.view(-1), shift_x.view(-1), shift_y.view(-1)), dim=1
         )
-        shifts = shifts.type_as(scores)
+        shifts = shifts.type_as(probs)
 
         # Enumerate all shifted anchors:
-        # add A anchors (1, A, 4) to K shifts (K, 1, 4) to get shift anchors (K, A, 4)
-        # reshape to (K * A, 4) shifted anchors
+        # Add A anchors (1, A, 4) to K shifts (K, 1, 4) to get shifted anchors (K, A, 4)
+        # Reshape to (K * A, 4) shifted anchors
         A = self.num_anchors
         K = shifts.size(0)
-        self.anchors = self.anchors.type_as(scores)
+        self.anchors = self.anchors.type_as(probs)
         anchors = self.anchors.view(1, A, 4) + shifts.view(1, K, 4).permute(1, 0, 2)
         anchors = anchors.view(K * A, 4)
 
-        # Permute and reshape predicted bbox transformations to the same order as the anchors:
-        # bbox deltas will be (1, 4 * A, H, W) format
-        # permute to (1, H, W, 4 * A)
-        # reshape to (1 * H * W * A, 4)
-        bbox_deltas = bbox_deltas.permute(0, 2, 3, 1).contiguous().view(-1, 4)
+        # Permute and reshape predicted anchor regression deltas to the same order as the anchors:
+        # Anchor deltas will be (1, 4 * A, H, W) format
+        # Permute to (1, H, W, 4 * A)
+        # Reshape to (1 * H * W * A, 4)
+        anchor_deltas = anchor_deltas.permute(0, 2, 3, 1).contiguous().view(-1, 4)
 
         # Safe-guard for unexpected large dw or dh value.
         # Since our proposals are only human, some background region features will never
         # receive gradients from bbox regression. Thus their predictions may drift away.
-        bbox_deltas[:, 2:].clamp_(-10, 10)
+        anchor_deltas[:, 2:].clamp_(-10, 10)
 
         # Same story for the scores:
-        # scores are (1, A, H, W) format
-        # permute to (1, H, W, A)
-        # reshape to (1 * H * W * A, 1)
-        scores = scores.permute(0, 2, 3, 1).contiguous().view(-1, 1)
+        # Scores are (1, A, H, W) format
+        # Permute to (1, H, W, A)
+        # Reshape to (1 * H * W * A, 1)
+        probs = probs.permute(0, 2, 3, 1).contiguous().view(-1, 1)
 
-        # Convert anchors into proposals via bbox transformations
-        proposals = bbox_transform_inv(anchors, bbox_deltas)
+        # Convert anchors into proposals via regression deltas
+        proposals = bbox_transform_inv(anchors, anchor_deltas)
 
-        # 2. Clip predicted boxes to image
-        proposals = clip_boxes(proposals, im_info)
+        # 2. Clip predicted proposals to image
+        proposals = clip_boxes(proposals, img_info[:2])
 
         # 3. Remove predicted boxes with either height or width < threshold
-        # (NOTE: need to scale min_size with the input image scale stored in im_info[2])
-        keep = filter_boxes(proposals, min_size * im_info[2])
+        # (NOTE: need to scale min_size with the input image scale stored in img_info[2])
+        widths = proposals[:, 2] - proposals[:, 0] + 1
+        heights = proposals[:, 3] - proposals[:, 1] + 1
+        min_size = min_size * img_info[2]
+        keep = torch.nonzero((widths >= min_size) & (heights >= min_size))[:, 0]
         proposals = proposals[keep]
-        scores = scores[keep]
+        probs = probs[keep]
 
         # 4. Sort all (proposal, score) pairs by score from highest to lowest
         # 5. Take top pre_nms_topN (e.g. 6000)
         if "DEBUG" in os.environ:
             import numpy as np
 
-            order = np.argsort(scores.view(-1).cpu()).numpy()[::-1]
+            order = np.argsort(probs.view(-1).cpu().detach()).numpy()[::-1]
             order = torch.from_numpy(order.copy())
         else:
-            order = scores.view(-1).argsort(descending=True)
+            order = probs.view(-1).argsort(descending=True)
         if pre_nms_topN > 0:
             order = order[:pre_nms_topN]
         proposals = proposals[order]
-        scores = scores[order]
+        probs = probs[order]
 
         # 6. Apply nms (e.g. threshold = 0.7)
         # 7. Take after_nms_topN (e.g. 300)
@@ -126,14 +136,13 @@ class ProposalLayer(nn.Module):
         if "DEBUG" in os.environ:
             keep = torch.arange(proposals.shape[0])
         else:
-            keep = nms(proposals, scores.squeeze(1), nms_thresh)
+            keep = nms(proposals, probs.squeeze(1), nms_thresh)
         if post_nms_topN > 0:
             keep = keep[:post_nms_topN]
         proposals = proposals[keep]
-        scores = scores[keep]
+        probs = probs[keep]
 
-        # Output proposals in [img_id, x1, y1, x2, y2] format.
+        # proposals: [img_id, x1, y1, x2, y2]
         # Our RPN implementation only supports a single input image, so all img_ids are 0.
-        output = torch.zeros(proposals.size(0), 5).type_as(scores)
-        output[:, 1:] = proposals
-        return output
+        proposals = torch.cat((torch.zeros(proposals.size(0), 1).type_as(probs), proposals), dim=1)
+        return proposals

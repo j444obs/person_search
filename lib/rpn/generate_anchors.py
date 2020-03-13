@@ -24,7 +24,9 @@ def generate_anchors():
 
 
 def whctrs(anchor):
-    """Return width, height, x center, and y center for an anchor."""
+    """
+    Return width, height, x center, and y center for an anchor.
+    """
     w = anchor[2] - anchor[0] + 1
     h = anchor[3] - anchor[1] + 1
     x_ctr = anchor[0] + 0.5 * (w - 1)
@@ -52,7 +54,9 @@ def mkanchors(ws, hs, x_ctr, y_ctr):
 
 
 def ratio_enum(anchor, ratios):
-    """Enumerate a set of anchors for a set of aspect ratios wrt an anchor."""
+    """
+    Enumerate a set of anchors for a set of aspect ratios wrt an anchor.
+    """
     w, h, x_ctr, y_ctr = whctrs(anchor)
     size = w * h
     size_ratios = size / ratios
@@ -63,7 +67,9 @@ def ratio_enum(anchor, ratios):
 
 
 def scale_enum(anchor, scales):
-    """Enumerate a set of anchors for a set of scales wrt an anchor."""
+    """
+    Enumerate a set of anchors for a set of scales wrt an anchor.
+    """
     w, h, x_ctr, y_ctr = whctrs(anchor)
     ws = w * scales
     hs = h * scales

@@ -1,15 +1,15 @@
+import logging
 import os
 import os.path as osp
 
 import numpy as np
-import torch
 from PIL import Image
 from scipy.io import loadmat
 from torch.utils.data import Dataset
 
-from datasets.minibatch import get_minibatch
-from utils import pickle, unpickle
+from datasets.data_processing import build_net_input
 from utils.config import cfg
+from utils.utils import pickle, unpickle
 
 
 class PSDB(Dataset):
@@ -35,12 +35,7 @@ class PSDB(Dataset):
         return len(self.roidb)
 
     def __getitem__(self, index):
-        blob = get_minibatch([self.roidb[index]])
-        return (
-            torch.from_numpy(blob["data"]),
-            torch.from_numpy(blob["im_info"]),
-            torch.from_numpy(blob["gt_boxes"]),
-        )
+        return build_net_input(self.roidb[index])
 
     def image_path_at(self, i):
         image_path = osp.join(self.data_path, self.image_index[i])
@@ -100,7 +95,8 @@ class PSDB(Dataset):
         return probes
 
     def load_roidb(self):
-        """Load the ground-truth roidb for each image.
+        """
+        Load the ground-truth roidb for each image.
 
         The roidb of each image is a dictionary that has the following keys:
             gt_boxes: ndarray[N, 4], all ground-truth boxes in (x1, y1, x2, y2) format
@@ -137,7 +133,7 @@ class PSDB(Dataset):
                 if np.all(boxes[i] == box):
                     pids[i] = pid
                     return
-            print("Warning: person %s box %s cannot find in images." % (pid, box))
+            logging.warning("Person: %s, box: %s cannot find in images." % (pid, box))
 
         # Load all the train / test persons and label their pids from 0 to N - 1
         # Assign pid = -1 for unlabeled background people
@@ -187,5 +183,5 @@ class PSDB(Dataset):
                 }
             )
         pickle(roidb, cache_file)
-        print("Save ground-truth roidb to: %s" % cache_file)
+        logging.info("Save ground-truth roidb to: %s" % cache_file)
         return roidb
