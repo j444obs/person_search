@@ -49,6 +49,7 @@ def parse_args():
     parser.add_argument(
         "--rand", action="store_true", help="Do not use a fixed seed. Default: False"
     )
+    parser.add_argument("--solver", default="sgd", help="Training optimizer. Default: sgd")
     parser.add_argument("--tbX", action="store_true", help="Enable tensorboardX. Default: False")
     return parser.parse_args()
 
@@ -101,16 +102,23 @@ if __name__ == "__main__":
                 params += [{"params": [v], "lr": 2 * lr, "weight_decay": 0}]
             else:
                 params += [{"params": [v], "lr": lr, "weight_decay": weight_decay}]
-    optimizer = optim.SGD(params, momentum=cfg.TRAIN.MOMENTUM)
+    if args.solver == "sgd":
+        optimizer = optim.SGD(params, momentum=cfg.TRAIN.MOMENTUM)
+    elif args.solver == "adam":
+        optimizer = optim.Adam(params)
+    else:
+        raise KeyError("Only support sgd and adam.")
 
     # Training settings
     start_epoch = 0
-    display = 20  # Display the loss every `display` steps
-    lr_decay = 4  # Decay the learning rate every `lr_decay` epochs
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=40000, gamma=0.1)
+    display = 1  # Display the loss every `display` steps
+    lr_decay_by_epoch = True  # True: decay by epoch, otherwise by step
+    lr_decay_epoch = 4  # Decay the learning rate every `lr_decay_epoch` epochs
+    lr_decay_step = 40000  # Decay the learning rate every `lr_decay_step` steps
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=lr_decay_step, gamma=0.1)
     iter_size = 2  # Each update use accumulated gradient by `iter_size` iterations
     use_caffe_smooth_loss = True
-    average_loss = 100  # Be used to calculate smoothed loss
+    average_loss = 100  # Be used to calculate caffe smoothed loss
 
     # Load checkpoint
     if args.checkpoint:
@@ -118,6 +126,8 @@ if __name__ == "__main__":
         start_epoch = checkpoint["epoch"] + 1
         net.load_state_dict(checkpoint["model"])
         optimizer.load_state_dict(checkpoint["optimizer"])
+        if "scheduler" in checkpoint:
+            scheduler.load_state_dict(checkpoint["scheduler"])
         print("Loaded checkpoint from: %s" % args.checkpoint)
 
     # Place the model on cuda device
@@ -138,10 +148,11 @@ if __name__ == "__main__":
     ave_loss = 0
     smoothed_loss = 0
     for epoch in range(start_epoch, args.epoch):
-        # if epoch % lr_decay == 0:
-        #     # Adjust learning rate
-        #     for param_group in optimizer.param_groups:
-        #         param_group['lr'] = 0.1 * param_group['lr']
+        # Do learning rate decay
+        if lr_decay_by_epoch:
+            if epoch % lr_decay_epoch == 0 and epoch:
+                for param_group in optimizer.param_groups:
+                    param_group["lr"] = 0.1 * param_group["lr"]
 
         for step, input_data in enumerate(dataloader):
             data, im_info, gt_boxes = input_data[0][0], input_data[1][0], input_data[2][0]
@@ -162,7 +173,10 @@ if __name__ == "__main__":
             if accumulated_step == iter_size:
                 optimizer.step()
                 optimizer.zero_grad()
-                scheduler.step()  # Adjust learning rate every real step
+
+                # Adjust learning rate every real step
+                if not lr_decay_by_epoch:
+                    scheduler.step()
 
                 if use_caffe_smooth_loss:
                     if len(losses) < average_loss:
@@ -220,10 +234,10 @@ if __name__ == "__main__":
 
         # Save checkpoint every epoch
         save_name = os.path.join(output_dir, "resnet50_epoch_%s.pth" % epoch)
-        torch.save(
-            {"epoch": epoch, "model": net.state_dict(), "optimizer": optimizer.state_dict()},
-            save_name,
-        )
+        save_dict = {"epoch": epoch, "model": net.state_dict(), "optimizer": optimizer.state_dict()}
+        if not lr_decay_by_epoch:
+            save_dict["scheduler" : scheduler.state_dict()]
+        torch.save(save_dict, save_name)
 
     if args.tbX:
         logger.close()
