@@ -90,7 +90,7 @@ if __name__ == "__main__":
     device = torch.device("cuda:%s" % args.gpu if args.gpu != -1 else "cpu")
     net.to(device)
 
-    save_path = osp.abspath("data/cache")
+    save_path = osp.abspath(osp.join(cfg.DATA_DIR, "cache"))
     if args.eval_only:
         gboxes = unpickle(osp.join(save_path, "gallery_detections.pkl"))
         gfeatures = unpickle(osp.join(save_path, "gallery_features.pkl"))
