@@ -1,5 +1,6 @@
 import argparse
 import logging
+import os
 import os.path as osp
 
 import coloredlogs
@@ -68,16 +69,22 @@ def exfeat(net, probes):
 if __name__ == "__main__":
     args = parse_args()
 
-    coloredlogs.install(level="INFO", fmt="%(asctime)s %(filename)s %(levelname)s %(message)s")
-
-    logging.info("Called with args:\n" + str(args))
-
     if args.cfg:
         cfg_from_file(args.cfg)
     if args.checkpoint is None:
-        raise KeyError("--checkpoint option must be specified.")
+        raise KeyError("--checkpoint option can not be empty.")
     if args.data_dir:
-        cfg.DATA_DIR = args.data_dir
+        cfg.DATA_DIR = osp.abspath(args.data_dir)
+
+    log_dir = osp.join(cfg.DATA_DIR, "logs")
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    log_file = osp.join(log_dir, "test.log")
+    fmt_str = "%(asctime)s %(filename)s %(levelname)s %(message)s"
+    logging.basicConfig(filename=log_file, format=fmt_str)
+    coloredlogs.install(level="INFO", fmt=fmt_str)
+
+    logging.info("Called with args:\n" + str(args))
 
     dataset = PSDB(args.dataset)
     logging.info("Loaded dataset: %s" % args.dataset)
@@ -90,7 +97,7 @@ if __name__ == "__main__":
     device = torch.device("cuda:%s" % args.gpu if args.gpu != -1 else "cpu")
     net.to(device)
 
-    save_path = osp.abspath(osp.join(cfg.DATA_DIR, "cache"))
+    save_path = osp.join(cfg.DATA_DIR, "cache")
     if args.eval_only:
         gboxes = unpickle(osp.join(save_path, "gallery_detections.pkl"))
         gfeatures = unpickle(osp.join(save_path, "gallery_features.pkl"))

@@ -99,7 +99,7 @@ cfg.RNG_SEED = 3
 # Root directory of project
 cfg.ROOT_DIR = osp.abspath(osp.join(osp.dirname(__file__), "..", ".."))
 # Data directory
-cfg.DATA_DIR = osp.abspath(osp.join(cfg.ROOT_DIR, "data"))
+cfg.DATA_DIR = osp.join(cfg.ROOT_DIR, "data")
 # Default GPU device id
 cfg.GPU_ID = 0
 # Size of the pooled region after RoI pooling

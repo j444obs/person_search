@@ -106,7 +106,7 @@ class PSDB(Dataset):
             height: int, image height
             flipped: bool, whether the image is horizontally-flipped
         """
-        cache_path = osp.abspath(osp.join(cfg.DATA_DIR, "cache"))
+        cache_path = osp.join(cfg.DATA_DIR, "cache")
         if not osp.exists(cache_path):
             os.makedirs(cache_path)
         cache_file = osp.join(cache_path, self.db_name + "_roidb.pkl")

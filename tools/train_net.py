@@ -50,14 +50,20 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
 
-    coloredlogs.install(level="INFO", fmt="%(asctime)s %(filename)s %(levelname)s %(message)s")
-
-    logging.info("Called with args:\n" + str(args))
-
     if args.cfg:
         cfg_from_file(args.cfg)
     if args.data_dir:
-        cfg.DATA_DIR = args.data_dir
+        cfg.DATA_DIR = osp.abspath(args.data_dir)
+
+    log_dir = osp.join(cfg.DATA_DIR, "logs")
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    log_file = osp.join(log_dir, "train.log")
+    fmt_str = "%(asctime)s %(filename)s %(levelname)s %(message)s"
+    logging.basicConfig(filename=log_file, format=fmt_str)
+    coloredlogs.install(level="INFO", fmt=fmt_str)
+
+    logging.info("Called with args:\n" + str(args))
 
     if not args.rand:
         # Fix the random seeds (numpy and pytorch) for reproducibility
@@ -71,7 +77,7 @@ if __name__ == "__main__":
         np.random.seed(cfg.RNG_SEED)
         os.environ["PYTHONHASHSEED"] = str(cfg.RNG_SEED)
 
-    output_dir = osp.abspath(osp.join(cfg.DATA_DIR, "trained_model"))
+    output_dir = osp.join(cfg.DATA_DIR, "trained_model")
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -82,7 +88,7 @@ if __name__ == "__main__":
 
     # Set model and optimizer
     if args.weights is None:
-        args.weights = osp.abspath(osp.join(cfg.DATA_DIR, "pretrained_model", "resnet50_caffe.pth"))
+        args.weights = osp.join(cfg.DATA_DIR, "pretrained_model", "resnet50_caffe.pth")
     net = Network(args.weights)
 
     lr = cfg.TRAIN.LEARNING_RATE
