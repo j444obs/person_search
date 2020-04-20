@@ -169,7 +169,7 @@ if __name__ == "__main__":
                     "optimizer": optimizer.state_dict(),
                 }
                 if not lr_decay_by_epoch:
-                    save_dict["scheduler" : scheduler.state_dict()]
+                    save_dict["scheduler"] = scheduler.state_dict()
                 torch.save(save_dict, save_name)
 
             _, _, _, _, rpn_loss_cls, rpn_loss_bbox, loss_cls, loss_bbox, loss_oim = net(
@@ -254,7 +254,7 @@ if __name__ == "__main__":
         save_name = os.path.join(output_dir, "checkpoint_epoch_%s.pth" % epoch)
         save_dict = {"epoch": epoch, "model": net.state_dict(), "optimizer": optimizer.state_dict()}
         if not lr_decay_by_epoch:
-            save_dict["scheduler" : scheduler.state_dict()]
+            save_dict["scheduler"] = scheduler.state_dict()
         torch.save(save_dict, save_name)
 
     if args.tbX:
