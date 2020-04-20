@@ -10,7 +10,7 @@ from tqdm import tqdm
 import _init_paths  # noqa: F401
 from datasets.psdb import PSDB
 from models.network import Network
-from utils.config import cfg_from_file
+from utils.config import cfg, cfg_from_file
 from utils.evaluate import evaluate_detections, evaluate_search
 from utils.utils import pickle, unpickle
 
@@ -22,6 +22,9 @@ def parse_args():
     )
     parser.add_argument("--checkpoint", help="The checkpoint to be tested. Default: None")
     parser.add_argument("--cfg", help="Optional config file. Default: None")
+    parser.add_argument(
+        "--data_dir", help="The directory that saving experimental data. Default: None",
+    )
     parser.add_argument(
         "--dataset", default="psdb_test", help="Dataset to test on. Default: psdb_test"
     )
@@ -73,6 +76,8 @@ if __name__ == "__main__":
         cfg_from_file(args.cfg)
     if args.checkpoint is None:
         raise KeyError("--checkpoint option must be specified.")
+    if args.data_dir:
+        cfg.DATA_DIR = args.data_dir
 
     dataset = PSDB(args.dataset)
     logging.info("Loaded dataset: %s" % args.dataset)
