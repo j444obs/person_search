@@ -80,7 +80,7 @@ if __name__ == "__main__":
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
     log_file = osp.join(log_dir, "test.log")
-    fmt_str = "%(asctime)s %(filename)s %(levelname)s %(message)s"
+    fmt_str = "[%(asctime)s] [%(filename)-12s] [%(levelname)s] : %(message)s"
     logging.basicConfig(filename=log_file, format=fmt_str)
     coloredlogs.install(level="INFO", fmt=fmt_str)
 

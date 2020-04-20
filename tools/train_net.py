@@ -59,7 +59,7 @@ if __name__ == "__main__":
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
     log_file = osp.join(log_dir, "train.log")
-    fmt_str = "%(asctime)s %(filename)s %(levelname)s %(message)s"
+    fmt_str = "[%(asctime)s] [%(filename)-12s] [%(levelname)s] : %(message)s"
     logging.basicConfig(filename=log_file, format=fmt_str)
     coloredlogs.install(level="INFO", fmt=fmt_str)
 
@@ -218,7 +218,8 @@ if __name__ == "__main__":
                             + "Learning rate: %s\n"
                             + "The %s-th iteration loss:\n"
                             + "  rpn_loss_cls: %.4f, rpn_loss_bbox: %.4f\n"
-                            + "  loss_cls: %.4f, loss_bbox: %.4f, loss_oim: %.4f"
+                            + "  loss_cls: %.4f, loss_bbox: %.4f, loss_oim: %.4f\n"
+                            + "--------------------------------------------------------------\n"
                         )
                         % (
                             epoch,
