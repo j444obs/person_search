@@ -70,7 +70,7 @@ if __name__ == "__main__":
 
     coloredlogs.install(level="INFO", fmt="%(asctime)s %(filename)s %(levelname)s %(message)s")
 
-    logging.info("Called with args: " + str(args))
+    logging.info("Called with args:\n" + str(args))
 
     if args.cfg:
         cfg_from_file(args.cfg)

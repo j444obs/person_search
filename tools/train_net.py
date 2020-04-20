@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
     coloredlogs.install(level="INFO", fmt="%(asctime)s %(filename)s %(levelname)s %(message)s")
 
-    logging.info("Called with args: " + str(args))
+    logging.info("Called with args:\n" + str(args))
 
     if args.cfg:
         cfg_from_file(args.cfg)
@@ -204,20 +204,31 @@ if __name__ == "__main__":
                         display_loss = ave_loss / display if real_step > 0 else ave_loss
                         ave_loss = 0
 
-                    logging.info("----------------------------------------------------------------")
                     logging.info(
-                        "Epoch: [%s / %s], iteration [%s / %s], loss: %.4f"
-                        % (epoch, args.epoch - 1, real_step, real_steps_per_epoch - 1, display_loss)
-                    )
-                    logging.info("Time cost: %.2f seconds" % (time.time() - start))
-                    logging.info("Learning rate: %s" % optimizer.param_groups[0]["lr"])
-                    logging.info("The %s-th iteration loss:" % real_step)
-                    logging.info(
-                        "  rpn_loss_cls: %.4f, rpn_loss_bbox: %.4f" % (rpn_loss_cls, rpn_loss_bbox)
-                    )
-                    logging.info(
-                        "  loss_cls: %.4f, loss_bbox: %.4f, loss_oim: %.4f"
-                        % (loss_cls, loss_bbox, loss_oim)
+                        (
+                            "\n--------------------------------------------------------------\n"
+                            + "Epoch: [%s / %s], iteration [%s / %s], loss: %.4f\n"
+                            + "Time cost: %.2f seconds\n"
+                            + "Learning rate: %s\n"
+                            + "The %s-th iteration loss:\n"
+                            + "  rpn_loss_cls: %.4f, rpn_loss_bbox: %.4f\n"
+                            + "  loss_cls: %.4f, loss_bbox: %.4f, loss_oim: %.4f"
+                        )
+                        % (
+                            epoch,
+                            args.epoch - 1,
+                            real_step,
+                            real_steps_per_epoch - 1,
+                            display_loss,
+                            time.time() - start,
+                            optimizer.param_groups[0]["lr"],
+                            real_step,
+                            rpn_loss_cls,
+                            rpn_loss_bbox,
+                            loss_cls,
+                            loss_bbox,
+                            loss_oim,
+                        )
                     )
 
                     start = time.time()
@@ -231,9 +242,7 @@ if __name__ == "__main__":
                             "loss_bbox": loss_bbox,
                             "loss_oim": loss_oim,
                         }
-                        logger.add_scalars(
-                            "Train/Loss", log_info, epoch * real_steps_per_epoch + real_step
-                        )
+                        logger.add_scalars("Train/Loss", log_info, total_steps)
 
         # Save checkpoint every epoch
         save_name = os.path.join(output_dir, "checkpoint_epoch_%s.pth" % epoch)
