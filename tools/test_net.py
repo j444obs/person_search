@@ -1,9 +1,7 @@
 import argparse
 import logging
-import os
 import os.path as osp
 
-import coloredlogs
 import cv2
 import torch
 from tqdm import tqdm
@@ -13,7 +11,7 @@ from datasets.psdb import PSDB
 from models.network import Network
 from utils.config import cfg, cfg_from_file
 from utils.evaluate import evaluate_detections, evaluate_search
-from utils.utils import pickle, unpickle
+from utils.utils import init_logger, pickle, unpickle
 
 
 def parse_args():
@@ -76,14 +74,7 @@ if __name__ == "__main__":
     if args.data_dir:
         cfg.DATA_DIR = osp.abspath(args.data_dir)
 
-    log_dir = osp.join(cfg.DATA_DIR, "logs")
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-    log_file = osp.join(log_dir, "test.log")
-    fmt_str = "[%(asctime)s] [%(filename)-12s] [%(levelname)s] : %(message)s"
-    logging.basicConfig(filename=log_file, format=fmt_str)
-    coloredlogs.install(level="INFO", fmt=fmt_str)
-
+    init_logger("test.log")
     logging.info("Called with args:\n" + str(args))
 
     dataset = PSDB(args.dataset)

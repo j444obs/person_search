@@ -1,6 +1,12 @@
+import logging
+import os
+import os.path as osp
 import pickle as pk
 
+import coloredlogs
 import torch
+
+from utils.config import cfg
 
 
 def smooth_l1_loss(deltas, gt_deltas, inside_weights, outside_weights, sigma=1):
@@ -45,3 +51,16 @@ def unpickle(file_path):
     with open(file_path, "rb") as f:
         data = pk.load(f)
     return data
+
+
+def init_logger(file_name, level="INFO"):
+    """
+    Initialize the colored logger and save the log to a file.
+    """
+    log_dir = osp.join(cfg.DATA_DIR, "logs")
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    log_file = osp.join(log_dir, file_name)
+    fmt_str = "[%(asctime)s] [%(filename)-12s] [%(levelname)s] : %(message)s"
+    logging.basicConfig(filename=log_file, format=fmt_str)
+    coloredlogs.install(level=level, fmt=fmt_str)
