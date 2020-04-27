@@ -211,4 +211,4 @@ def register_cuhk_sysu(dirname):
     MetadataCatalog.get("cuhk_sysu").set(thing_classes=["background", "person"], dirname=dirname)
 
 
-register_cuhk_sysu()
+register_cuhk_sysu("./dataset")
