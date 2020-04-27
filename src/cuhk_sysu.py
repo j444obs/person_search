@@ -2,11 +2,10 @@ import logging
 import os.path as osp
 
 import numpy as np
-from PIL import Image
-from scipy.io import loadmat
-
 from detectron2.data import DatasetCatalog, MetadataCatalog
 from detectron2.structures import BoxMode
+from PIL import Image
+from scipy.io import loadmat
 
 
 class CUHK_SYSU:

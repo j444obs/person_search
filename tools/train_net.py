@@ -1,22 +1,15 @@
 from detectron2.config import get_cfg
 from detectron2.engine import DefaultTrainer, default_argument_parser, default_setup, launch
+from detectron2.evaluation import DatasetEvaluators
 
-# class Trainer(DefaultTrainer):
-#     @classmethod
-#     def build_evaluator(cls, cfg, dataset_name):
-#         output_folder = os.path.join(cfg.OUTPUT_DIR, "inference")
-#         evaluators = [COCOEvaluator(dataset_name, cfg, True, output_folder)]
-#         if cfg.MODEL.DENSEPOSE_ON:
-#             evaluators.append(DensePoseCOCOEvaluator(dataset_name, True, output_folder))
-#         return DatasetEvaluators(evaluators)
+from src import CUHK_SYSU_Evaluator
 
-#     @classmethod
-#     def build_test_loader(cls, cfg, dataset_name):
-#         return build_detection_test_loader(cfg, dataset_name, mapper=DatasetMapper(cfg, False))
 
-#     @classmethod
-#     def build_train_loader(cls, cfg):
-#         return build_detection_train_loader(cfg, mapper=DatasetMapper(cfg, True))
+class Trainer(DefaultTrainer):
+    @classmethod
+    def build_evaluator(cls, cfg, dataset_name):
+        evaluators = [CUHK_SYSU_Evaluator(dataset_name)]
+        return DatasetEvaluators(evaluators)
 
 
 def setup(args):
@@ -41,7 +34,7 @@ def main(args):
     #         verify_results(cfg, res)
     #     return res
 
-    trainer = DefaultTrainer(cfg)
+    trainer = Trainer(cfg)
     trainer.resume_or_load(resume=args.resume)
     return trainer.train()
 
