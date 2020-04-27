@@ -17,7 +17,7 @@ from src.cuhk_sysu import CUHK_SYSU
 class Trainer(DefaultTrainer):
     @classmethod
     def build_evaluator(cls, cfg, dataset_name):
-        dataset = CUHK_SYSU("./data", "split")
+        dataset = CUHK_SYSU("./dataset", "split")
         evaluators = [CUHK_SYSU_Evaluator(dataset)]
         return DatasetEvaluators(evaluators)
 
