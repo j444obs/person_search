@@ -1,0 +1,24 @@
+MODEL:
+  META_ARCHITECTURE: "GeneralizedRCNN"
+  RPN:
+    PRE_NMS_TOPK_TEST: 6000
+    POST_NMS_TOPK_TEST: 1000
+  ROI_HEADS:
+    NAME: "Res5ROIHeads"
+    NUM_CLASSES: 2
+  WEIGHTS: "detectron2://ImageNetPretrained/MSRA/R-50.pkl"
+  MASK_ON: False
+  RESNETS:
+    DEPTH: 50
+INPUT:
+  MIN_SIZE_TRAIN: (480, 512, 544, 576, 608, 640, 672, 704, 736, 768, 800)
+  MIN_SIZE_TEST: 800
+DATASETS:
+  TRAIN: ('cuhk_sysu_train',)
+  TEST: ('cuhk_sysu_test',)
+SOLVER:
+  IMS_PER_BATCH: 2
+  BASE_LR: 0.0025
+  STEPS: (40000,)
+  MAX_ITER: 50000
+  WARMUP_ITERS: 100
