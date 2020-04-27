@@ -3,12 +3,14 @@ from detectron2.engine import DefaultTrainer, default_argument_parser, default_s
 from detectron2.evaluation import DatasetEvaluators
 
 from src import CUHK_SYSU_Evaluator
+from src.cuhk_sysu import CUHK_SYSU
 
 
 class Trainer(DefaultTrainer):
     @classmethod
     def build_evaluator(cls, cfg, dataset_name):
-        evaluators = [CUHK_SYSU_Evaluator(dataset_name)]
+        dataset = CUHK_SYSU("./data", "split")
+        evaluators = [CUHK_SYSU_Evaluator(dataset)]
         return DatasetEvaluators(evaluators)
 
 
