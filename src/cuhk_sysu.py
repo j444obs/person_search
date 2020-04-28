@@ -8,7 +8,7 @@ from detectron2.structures import BoxMode
 from PIL import Image
 from scipy.io import loadmat
 
-from utils import pickle, unpickle
+from .utils import pickle, unpickle
 
 
 class CUHK_SYSU:
@@ -196,12 +196,12 @@ def load_cuhk_sysu_instances(dirname, split):
         dicts.append(dict)
 
     # probe images
-    if split == "test":
-        for probe in dataset.probes:
-            dict = {}
-            dict["file_name"] = probe[0]
-            dict["probe"] = probe[1]
-            dicts.append(dict)
+    # if split == "test":
+    #     for probe in dataset.probes:
+    #         dict = {}
+    #         dict["file_name"] = probe[0]
+    #         dict["probe"] = probe[1]
+    #         dicts.append(dict)
 
     return dicts
 
