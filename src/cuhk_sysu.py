@@ -1,4 +1,5 @@
 import logging
+import os
 import os.path as osp
 
 import numpy as np
@@ -7,63 +8,43 @@ from detectron2.structures import BoxMode
 from PIL import Image
 from scipy.io import loadmat
 
+from utils import pickle, unpickle
+
 
 class CUHK_SYSU:
-    def __init__(self, root_dir, db_name):
-        self.db_name = db_name
-        self.root_dir = root_dir
-        self.data_path = osp.join(self.root_dir, "Image", "SSM")
+    def __init__(self, dirname, split):
+        self.dirname = dirname
+        self.split = split
+        self.data_path = osp.join(self.dirname, "Image", "SSM")
         self.classes = ["background", "person"]
-        self.image_index = self.load_image_index()
+        self.logger = logging.getLogger(__name__)
+        self.image_indexes = self.load_image_indexes()
         self.roidb = self.load_roidb()
-        if db_name == "test":
+        if split == "test":
             self.probes = self.load_probes()
-        # if db_name == "train":
-        #     self.append_flipped_images()
 
     @property
     def num_images(self):
-        return len(self.image_index)
+        return len(self.image_indexes)
 
     def image_path_at(self, i):
-        image_path = osp.join(self.data_path, self.image_index[i])
+        image_path = osp.join(self.data_path, self.image_indexes[i])
         assert osp.isfile(image_path), "Path does not exist: %s" % image_path
         return image_path
 
-    # def append_flipped_images(self):
-    #     num_images = len(self.image_index)
-    #     widths = [Image.open(self.image_path_at(i)).size[0] for i in range(num_images)]
-    #     for i in range(num_images):
-    #         gt_boxes = self.roidb[i]["gt_boxes"].copy()
-    #         oldx1 = gt_boxes[:, 0].copy()
-    #         oldx2 = gt_boxes[:, 2].copy()
-    #         gt_boxes[:, 0] = widths[i] - oldx2 - 1
-    #         gt_boxes[:, 2] = widths[i] - oldx1 - 1
-    #         assert (gt_boxes[:, 2] >= gt_boxes[:, 0]).all()
-    #         entry = {
-    #             "gt_boxes": gt_boxes,
-    #             "gt_pids": self.roidb[i]["gt_pids"],
-    #             "image": self.roidb[i]["image"],
-    #             "height": self.roidb[i]["height"],
-    #             "width": self.roidb[i]["width"],
-    #             "flipped": True,
-    #         }
-    #         self.roidb.append(entry)
-    #     self.image_index = self.image_index * 2
-
-    def load_image_index(self):
+    def load_image_indexes(self):
         """
         Load the image indexes for training / testing.
         """
         # Test images
-        test = loadmat(osp.join(self.root_dir, "annotation", "pool.mat"))
+        test = loadmat(osp.join(self.dirname, "annotation", "pool.mat"))
         test = test["pool"].squeeze()
         test = [str(a[0]) for a in test]
-        if self.db_name == "test":
+        if self.split == "test":
             return test
 
         # All images
-        all_imgs = loadmat(osp.join(self.root_dir, "annotation", "Images.mat"))
+        all_imgs = loadmat(osp.join(self.dirname, "annotation", "Images.mat"))
         all_imgs = all_imgs["Img"].squeeze()
         all_imgs = [str(a[0][0]) for a in all_imgs]
 
@@ -76,7 +57,7 @@ class CUHK_SYSU:
         """
         Load the list of (img, roi) for probes.
         """
-        protocol = loadmat(osp.join(self.root_dir, "annotation/test/train_test/TestG50.mat"))
+        protocol = loadmat(osp.join(self.dirname, "annotation/test/train_test/TestG50.mat"))
         protocol = protocol["TestG50"].squeeze()
         probes = []
         for item in protocol["Query"]:
@@ -91,22 +72,21 @@ class CUHK_SYSU:
         Load the ground-truth roidb for each image.
 
         The roidb of each image is a dictionary that has the following keys:
-            gt_boxes: ndarray[N, 4], all ground-truth boxes in (x1, y1, x2, y2) format
-            gt_pids: ndarray[N], person IDs for these ground-truth boxes
-            image: str, image path
-            width: int, image width
-            height: int, image height
-            flipped: bool, whether the image is horizontally-flipped
+            gt_boxes (ndarray[N, 4]): all ground-truth boxes in (x1, y1, x2, y2) format
+            gt_pids (ndarray[N]): person IDs for these ground-truth boxes
+            image (str): image path
+            width (int): image width
+            height (int): image height
         """
-        # cache_path = osp.join(cfg.DATA_DIR, "cache")
-        # if not osp.exists(cache_path):
-        #     os.makedirs(cache_path)
-        # cache_file = osp.join(cache_path, self.db_name + "_roidb.pkl")
-        # if osp.isfile(cache_file):
-        #     return unpickle(cache_file)
+        cache_path = osp.join(self.dirname, "cache")
+        if not osp.exists(cache_path):
+            os.makedirs(cache_path)
+        cache_file = osp.join(cache_path, self.split + "_roidb.pkl")
+        if osp.isfile(cache_file):
+            return unpickle(cache_file)
 
         # Load all images and build a dict from image to boxes
-        all_imgs = loadmat(osp.join(self.root_dir, "annotation", "Images.mat"))
+        all_imgs = loadmat(osp.join(self.dirname, "annotation", "Images.mat"))
         all_imgs = all_imgs["Img"].squeeze()
         name_to_boxes = {}
         name_to_pids = {}
@@ -125,12 +105,12 @@ class CUHK_SYSU:
                 if np.all(boxes[i] == box):
                     pids[i] = pid
                     return
-            logging.warning("Person: %s, box: %s cannot find in images." % (pid, box))
+            self.logger.warning("Person: %s, box: %s cannot find in images." % (pid, box))
 
         # Load all the train / test persons and label their pids from 0 to N - 1
         # Assign pid = -1 for unlabeled background people
-        if self.db_name == "train":
-            train = loadmat(osp.join(self.root_dir, "annotation/test/train_test/Train.mat"))
+        if self.split == "train":
+            train = loadmat(osp.join(self.dirname, "annotation/test/train_test/Train.mat"))
             train = train["Train"].squeeze()
             for index, item in enumerate(train):
                 scenes = item[0, 0][2].squeeze()
@@ -139,7 +119,7 @@ class CUHK_SYSU:
                     box = box.squeeze().astype(np.int32)
                     set_box_pid(name_to_boxes[im_name], box, name_to_pids[im_name], index)
         else:
-            test = loadmat(osp.join(self.root_dir, "annotation/test/train_test/TestG50.mat"))
+            test = loadmat(osp.join(self.dirname, "annotation/test/train_test/TestG50.mat"))
             test = test["TestG50"].squeeze()
             for index, item in enumerate(test):
                 # query
@@ -158,7 +138,7 @@ class CUHK_SYSU:
 
         # Construct the roidb
         roidb = []
-        for i, im_name in enumerate(self.image_index):
+        for i, im_name in enumerate(self.image_indexes):
             boxes = name_to_boxes[im_name]
             boxes[:, 2] += boxes[:, 0]
             boxes[:, 3] += boxes[:, 1]
@@ -171,43 +151,67 @@ class CUHK_SYSU:
                     "image": self.image_path_at(i),
                     "height": size[1],
                     "width": size[0],
-                    # "flipped": False,
                 }
             )
-        # pickle(roidb, cache_file)
-        # logging.info("Save ground-truth roidb to: %s" % cache_file)
+        pickle(roidb, cache_file)
+        self.logger.info("Save ground-truth roidb to: %s" % cache_file)
         return roidb
 
 
 def load_cuhk_sysu_instances(dirname, split):
+    """
+    Load the instances of images.
+
+    Each gallery image has the following properties:
+        file_name, image_id, height, width, annotations
+
+    Each probe image only has two properties: file_name, probe
+
+    Args:
+        dirname (str): directory of the dataset
+        split (str): "train" or "test"
+    """
     dataset = CUHK_SYSU(dirname, split)
     dicts = []
-    for i, image in enumerate(dataset.image_index):
+
+    # gallery images
+    for i, image_index in enumerate(dataset.image_indexes):
+        roidb = dataset.roidb[i]
         dict = {}
-        dict["file_name"] = dataset.roidb[i]["image"]
-        dict["image_id"] = image
-        dict["height"] = dataset.roidb[i]["height"]
-        dict["width"] = dataset.roidb[i]["width"]
-        # dict["flipped"] = dataset.roidb[i]["flipped"]
+        dict["file_name"] = roidb["image"]
+        dict["image_id"] = image_index
+        dict["height"] = roidb["height"]
+        dict["width"] = roidb["width"]
         instances = []
-        for j, gt_box in enumerate(dataset.roidb[i]["gt_boxes"]):
+        for gt_box, gt_pid in zip(roidb["gt_boxes"], roidb["gt_pids"]):
             instances.append(
                 {
                     "bbox": gt_box,
                     "bbox_mode": BoxMode.XYXY_ABS,
                     "category_id": 1,
-                    "person_id": dataset.roidb[i]["gt_pids"][j],
+                    "person_id": gt_pid,
                 }
             )
         dict["annotations"] = instances
         dicts.append(dict)
+
+    # probe images
+    if split == "test":
+        for probe in dataset.probes:
+            dict = {}
+            dict["file_name"] = probe[0]
+            dict["probe"] = probe[1]
+            dicts.append(dict)
+
     return dicts
 
 
 def register_cuhk_sysu(dirname):
-    DatasetCatalog.register("cuhk_sysu_train", lambda: load_cuhk_sysu_instances(dirname, "train"))
-    DatasetCatalog.register("cuhk_sysu_test", lambda: load_cuhk_sysu_instances(dirname, "test"))
-    MetadataCatalog.get("cuhk_sysu").set(thing_classes=["background", "person"], dirname=dirname)
+    for dataset, split in zip(["cuhk_sysu_train", "cuhk_sysu_test"], ["train", "test"]):
+        DatasetCatalog.register(dataset, lambda: load_cuhk_sysu_instances(dirname, split))
+        MetadataCatalog.get(dataset).set(
+            thing_classes=["background", "person"], dirname=dirname, evaluator_type="cuhk_sysu"
+        )
 
 
-register_cuhk_sysu("./dataset")
+register_cuhk_sysu("./data")

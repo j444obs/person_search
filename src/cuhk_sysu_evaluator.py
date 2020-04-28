@@ -1,31 +1,35 @@
-import logging
-
 import numpy as np
 import torch
+from detectron2.data import MetadataCatalog
 from detectron2.evaluation import DatasetEvaluator
 from sklearn.metrics import average_precision_score
 
-# NOTE: Only support one GPU
+from src import CUHK_SYSU
 
 
 class CUHK_SYSU_Evaluator(DatasetEvaluator):
-    def __init__(self, dataset):
-        self.dataset = dataset
+    def __init__(self):
+        dirname = MetadataCatalog.get("cuhk_sysu_test").dirname
+        self.dataset = CUHK_SYSU(dirname, "test")
 
     def reset(self):
-        self.predictions = []
+        self.gallery_det = []
 
     def process(self, inputs, outputs):
-        for _, output in zip(inputs, outputs):
-            instances = output["instances"]
-            boxes = instances.pred_boxes.tensor
-            scores = instances.scores
-            prediction = torch.cat((boxes, scores.unsqueeze(1)), dim=1).cpu().numpy()
-            self.predictions.append(prediction)
+        for input, output in zip(inputs, outputs):
+            if "probe" not in input:
+                # gallery image
+                instances = output["instances"]
+                boxes = instances.pred_boxes.tensor
+                scores = instances.scores
+                detections = torch.cat((boxes, scores.unsqueeze(1)), dim=1).cpu().numpy()
+                self.gallery_det.append(detections)
 
     def evaluate(self):
-        evaluate_detections(self.dataset, self.predictions)
-        return "Nothing to return"
+        ret = {}
+        ret["All"] = evaluate_detections(self.dataset, self.gallery_det)
+        ret["Labeled only"] = evaluate_detections(self.dataset, self.gallery_det, labeled_only=True)
+        return ret
 
 
 def compute_iou(a, b):
@@ -91,7 +95,8 @@ def evaluate_detections(dataset, gallery_det, threshold=0.5, iou_thresh=0.5, lab
     det_rate = count_tp * 1.0 / count_gt
     ap = average_precision_score(y_true, y_score) * det_rate
 
-    logging.info("{} detection:".format("Labeled only" if labeled_only else "All"))
-    logging.info("  Recall = {:.2%}".format(det_rate))
+    ret = {}
+    ret["Recall"] = det_rate
     if not labeled_only:
-        logging.info("  AP = {:.2%}".format(ap))
+        ret["AP"] = ap
+    return ret
